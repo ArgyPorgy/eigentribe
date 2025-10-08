@@ -67,9 +67,22 @@ export default function Navigation({ currentPage, onPageChange }: NavigationProp
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden md:block text-right">
-              <p className="text-sm font-medium text-white">{profile?.name || 'Anonymous'}</p>
-              <p className="text-xs text-slate-400">{profile?.email}</p>
+            <div className="hidden md:flex items-center gap-3">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.name || profile.email}
+                  className="w-10 h-10 rounded-lg object-cover border border-blue-500/30"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div className="text-right">
+                <p className="text-sm font-medium text-white">{profile?.name || profile?.email.split('@')[0]}</p>
+                <p className="text-xs text-slate-400">{profile?.email}</p>
+              </div>
             </div>
             <button
               onClick={handleSignOut}

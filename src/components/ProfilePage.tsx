@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Wallet, ExternalLink, Calendar, Loader2 } from 'lucide-react';
+import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
 import { supabase, Submission } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import SubmissionForm from './SubmissionForm';
@@ -83,12 +83,23 @@ export default function ProfilePage() {
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </div>
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.name || profile.email}
+                className="w-20 h-20 rounded-xl object-cover border-2 border-blue-500/50"
+              />
+            ) : (
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <User className="w-10 h-10 text-white" />
+              </div>
+            )}
             <div>
-              <h2 className="text-2xl font-bold text-white">{profile.name || 'Anonymous'}</h2>
-              <p className="text-slate-400">{profile.email}</p>
+              <h2 className="text-2xl font-bold text-white">{profile.name || profile.email.split('@')[0]}</h2>
+              <div className="flex items-center gap-2 text-slate-400 mt-1">
+                <Mail className="w-4 h-4" />
+                <p className="text-sm">{profile.email}</p>
+              </div>
             </div>
           </div>
           <button
@@ -100,14 +111,15 @@ export default function ProfilePage() {
         </div>
 
         {editingProfile ? (
-          <form onSubmit={handleProfileUpdate} className="space-y-4">
+          <form onSubmit={handleProfileUpdate} className="space-y-4 mt-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Display Name</label>
               <input
                 type="text"
                 value={profileData.name}
                 onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your display name"
                 required
               />
             </div>
@@ -131,17 +143,30 @@ export default function ProfilePage() {
             </button>
           </form>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-slate-900/30 rounded-xl">
+            <div className="flex items-start gap-3">
+              <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Email</p>
+                <p className="text-slate-200">{profile.email}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Calendar className="w-5 h-5 text-cyan-400 mt-0.5" />
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Member Since</p>
+                <p className="text-slate-200">{formatDate(profile.created_at)}</p>
+              </div>
+            </div>
             {profile.wallet_address && (
-              <div className="flex items-center gap-3 text-slate-300">
-                <Wallet className="w-5 h-5 text-slate-500" />
-                <span className="font-mono text-sm">{profile.wallet_address}</span>
+              <div className="flex items-start gap-3 md:col-span-2">
+                <Wallet className="w-5 h-5 text-green-400 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Wallet Address</p>
+                  <p className="font-mono text-sm text-slate-200 break-all">{profile.wallet_address}</p>
+                </div>
               </div>
             )}
-            <div className="flex items-center gap-3 text-slate-300">
-              <Calendar className="w-5 h-5 text-slate-500" />
-              <span className="text-sm">Joined {formatDate(profile.created_at)}</span>
-            </div>
           </div>
         )}
       </div>
