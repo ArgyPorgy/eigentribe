@@ -12,7 +12,8 @@ function AppContent() {
   const location = useLocation();
   
   // Check if user is admin
-  const isAdmin = profile?.email === 'carghya10@gmail.com';
+  const serviceEmail = import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const isAdmin = profile?.email === serviceEmail;
 
   if (loading) {
     return (

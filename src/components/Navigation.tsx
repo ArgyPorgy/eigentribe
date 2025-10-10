@@ -10,7 +10,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
   const { profile, signOut, signInWithGoogle, user } = useAuth();
   
   // Check if user is admin
-  const isAdmin = profile?.email === 'carghya10@gmail.com';
+  const serviceEmail = import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const isAdmin = profile?.email === serviceEmail;
 
   const handleSignOut = async () => {
     try {
