@@ -21,38 +21,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    console.log('Fetching profile for user:', userId);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      console.log('Fetched profile data:', data);
+      return data;
+    } catch (error) {
+      console.error('Network error fetching profile:', error);
       return null;
     }
-
-    return data;
   };
 
   const createProfile = async (user: User) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata.full_name || user.user_metadata.name || user.email?.split('@')[0],
-        avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
-      })
-      .select()
-      .single();
+    console.log('Creating profile for user:', user);
+    console.log('User metadata:', user.user_metadata);
+    console.log('User email:', user.email);
+    
+    // Only include columns that exist in the table
+    const profileData = {
+      id: user.id,
+      email: user.email!,
+      name: user.user_metadata.full_name || user.user_metadata.name || user.email?.split('@')[0],
+      // Remove avatar_url since it doesn't exist in the table
+    };
+    
+    console.log('Profile data to insert:', profileData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert(profileData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating profile:', error);
+      if (error) {
+        console.error('❌ Error creating profile:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        return null;
+      }
+
+      console.log('✅ Created profile data:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Network error creating profile:', error);
       return null;
     }
-
-    return data;
   };
 
   const refreshProfile = async () => {
@@ -68,18 +91,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Test Supabase connection first
+    console.log('🔍 Testing Supabase connection...');
+    supabase.from('profiles').select('count').then(({ data, error }) => {
+      if (error) {
+        console.error('❌ Supabase connection test failed:', error);
+      } else {
+        console.log('✅ Supabase connection test successful:', data);
+      }
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       (async () => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          console.log('Initial session user found:', session.user);
           let profileData = await fetchProfile(session.user.id);
 
           if (!profileData) {
+            console.log('No profile found in initial load, creating new one...');
             profileData = await createProfile(session.user);
           }
 
+          console.log('Setting initial profile:', profileData);
           setProfile(profileData);
         }
 
@@ -95,12 +131,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          console.log('Session user found:', session.user);
           let profileData = await fetchProfile(session.user.id);
 
           if (!profileData) {
+            console.log('No profile found, creating new one...');
             profileData = await createProfile(session.user);
           }
 
+          console.log('Setting profile:', profileData);
           setProfile(profileData);
         } else {
           setProfile(null);

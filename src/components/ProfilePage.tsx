@@ -1,19 +1,24 @@
 import { useState, useEffect } from 'react';
 import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
+import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
 import { supabase, Submission } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import SubmissionForm from './SubmissionForm';
 
 export default function ProfilePage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, user, loading: authLoading } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     walletAddress: '',
   });
+  const [error, setError] = useState<string | null>(null);
+
+  // Debug logging
+  console.log('ProfilePage - user:', user);
+  console.log('ProfilePage - profile:', profile);
+  console.log('ProfilePage - authLoading:', authLoading);
 
   useEffect(() => {
     if (profile) {
@@ -24,6 +29,26 @@ export default function ProfilePage() {
       loadSubmissions();
     }
   }, [profile]);
+
+  // If we have a user but no profile, try to refresh it
+  useEffect(() => {
+    if (user && !profile && !authLoading) {
+      console.log('User exists but no profile, attempting to refresh...');
+      refreshProfile();
+    }
+  }, [user, profile, authLoading, refreshProfile]);
+
+  // Add timeout for profile loading
+  useEffect(() => {
+    if (user && !profile && !authLoading) {
+      const timeout = setTimeout(() => {
+        console.error('Profile loading timeout - possible Supabase connection issue');
+        setError('Profile loading is taking too long. Please check your Supabase configuration.');
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [user, profile, authLoading]);
 
   const loadSubmissions = async () => {
     if (!profile) return;
@@ -76,35 +101,79 @@ export default function ProfilePage() {
     });
   };
 
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8">
+          <div className="text-center py-12">
+            <div className="text-red-600 text-lg font-medium mb-4">Configuration Error</div>
+            <div className="text-gray-700 mb-6">{error}</div>
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>To fix this issue:</p>
+              <ol className="list-decimal list-inside space-y-1 text-left max-w-md mx-auto">
+                <li>Create a <code className="bg-gray-200 px-2 py-1 rounded">.env.local</code> file in your project root</li>
+                <li>Add your Supabase credentials:</li>
+                <li><code className="bg-gray-200 px-2 py-1 rounded">VITE_SUPABASE_URL=your_url</code></li>
+                <li><code className="bg-gray-200 px-2 py-1 rounded">VITE_SUPABASE_ANON_KEY=your_key</code></li>
+                <li>Restart the development server</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading || (!profile && user)) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
+        <div className="bg-white border-lavender rounded-2xl p-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-gray-600">
+              {authLoading ? 'Loading...' : 'Loading profile...'}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
+        <div className="bg-white border-lavender rounded-2xl p-8">
+          <div className="flex items-center justify-center py-12">
+            <span className="text-gray-600">Please log in to view your profile.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // At this point, we know profile exists due to our checks above
   if (!profile) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50">
+    <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
+      <div className="bg-white border-lavender rounded-2xl p-8">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.name || profile.email}
-                className="w-20 h-20 rounded-xl object-cover border-2 border-blue-500/50"
-              />
-            ) : (
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <User className="w-10 h-10 text-white" />
-              </div>
-            )}
+            <div className="w-20 h-20 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+              <User className="w-10 h-10 text-white" />
+            </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">{profile.name || profile.email.split('@')[0]}</h2>
-              <div className="flex items-center gap-2 text-slate-400 mt-1">
+              <h2 className="text-2xl font-medium text-black">{profile.name || profile.email.split('@')[0]}</h2>
+              <div className="flex items-center gap-2 text-gray-600 mt-1">
                 <Mail className="w-4 h-4" />
-                <p className="text-sm">{profile.email}</p>
+                <p className="text-sm font-light">{profile.email}</p>
               </div>
             </div>
           </div>
           <button
             onClick={() => setEditingProfile(!editingProfile)}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+            className="px-4 py-2 font-black text-white rounded-lg transition-all"
+            style={{ backgroundColor: '#1A0C6D' }}
           >
             {editingProfile ? 'Cancel' : 'Edit Profile'}
           </button>
@@ -112,58 +181,60 @@ export default function ProfilePage() {
 
         {editingProfile ? (
           <form onSubmit={handleProfileUpdate} className="space-y-4 mt-6">
+          <form onSubmit={handleProfileUpdate} className="space-y-4 mt-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Display Name</label>
+              <label className="block text-sm font-light text-gray-600 mb-2">Display Name</label>
               <input
                 type="text"
                 value={profileData.name}
                 onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-black font-light focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                 placeholder="Enter your display name"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-light text-gray-600 mb-2">
                 Wallet Address
               </label>
               <input
                 type="text"
                 value={profileData.walletAddress}
                 onChange={(e) => setProfileData({ ...profileData, walletAddress: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-black font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                 placeholder="0x..."
               />
             </div>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all"
+              className="px-6 py-2 font-black text-white rounded-lg transition-all"
+              style={{ backgroundColor: '#1A0C6D' }}
             >
               Save Changes
             </button>
           </form>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-slate-900/30 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-white border-lavender rounded-xl">
             <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
+              <Mail className="w-5 h-5 text-gray-500 mt-0.5" />
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Email</p>
-                <p className="text-slate-200">{profile.email}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-light">Email</p>
+                <p className="text-black font-light">{profile.email}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-cyan-400 mt-0.5" />
+              <Calendar className="w-5 h-5 text-gray-500 mt-0.5" />
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Member Since</p>
-                <p className="text-slate-200">{formatDate(profile.created_at)}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-light">Member Since</p>
+                <p className="text-black font-light">{formatDate(profile.created_at)}</p>
               </div>
             </div>
             {profile.wallet_address && (
               <div className="flex items-start gap-3 md:col-span-2">
-                <Wallet className="w-5 h-5 text-green-400 mt-0.5" />
+                <Wallet className="w-5 h-5 text-gray-500 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Wallet Address</p>
-                  <p className="font-mono text-sm text-slate-200 break-all">{profile.wallet_address}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-light">Wallet Address</p>
+                  <p className="font-mono text-sm text-black break-all font-light">{profile.wallet_address}</p>
                 </div>
               </div>
             )}
@@ -171,56 +242,43 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-2xl font-bold text-white">Your Submissions</h3>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all"
-        >
-          {showForm ? 'Hide Form' : 'New Submission'}
-        </button>
+      <div>
+        <h3 className="text-2xl font-medium text-black mb-6">Your Submissions</h3>
       </div>
 
-      {showForm && (
-        <SubmissionForm
-          onSuccess={() => {
-            setShowForm(false);
-            loadSubmissions();
-          }}
-        />
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
       ) : submissions.length === 0 ? (
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-12 border border-slate-700/50 text-center">
-          <p className="text-slate-400">No submissions yet. Create your first submission!</p>
+        <div className="bg-white border-lavender rounded-2xl p-12 text-center">
+          <p className="text-gray-600 font-light">No submissions yet. Create your first submission!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {submissions.map((submission) => (
             <div
               key={submission.id}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-blue-500/50 transition-all"
+              className="bg-white border-lavender rounded-2xl p-6 hover:border-blue-600 transition-all"
             >
-              <h4 className="text-xl font-semibold text-white mb-3">{submission.name}</h4>
+              <h4 className="text-xl font-medium text-black mb-3">{submission.name}</h4>
               <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Wallet className="w-4 h-4" />
-                  <span className="font-mono text-xs truncate">{submission.wallet_address}</span>
+                  <span className="font-mono text-xs truncate font-light">{submission.wallet_address}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4" />
-                  <span>{formatDate(submission.created_at)}</span>
+                  <span className="font-light">{formatDate(submission.created_at)}</span>
                 </div>
               </div>
               <a
                 href={submission.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                className="inline-flex items-center gap-2 font-light transition-colors"
+                style={{ color: '#1A0C6D' }}
               >
                 <span>View Project</span>
                 <ExternalLink className="w-4 h-4" />

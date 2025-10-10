@@ -1,7 +1,30 @@
 import { useState } from 'react';
-import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle, Shield } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AdminPage() {
+  const { profile } = useAuth();
+  
+  // Check if user is admin
+  const isAdmin = profile?.email === 'carghya10@gmail.com';
+  
+  if (!isAdmin) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50">
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-red-500/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-red-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
+            <p className="text-slate-400">
+              You don't have permission to access the admin panel.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -15,6 +38,12 @@ export default function AdminPage() {
 
   const handleUpload = async () => {
     if (!file) return;
+    
+    // Double-check admin status before upload
+    if (!isAdmin) {
+      setResult({ success: false, message: 'Access denied. Only admin users can upload CSV files.' });
+      return;
+    }
 
     setLoading(true);
     setResult(null);

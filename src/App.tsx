@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import LandingPage from './components/LandingPage';
 import Navigation from './components/Navigation';
 import ProfilePage from './components/ProfilePage';
 import LeaderboardPage from './components/LeaderboardPage';
 import AdminPage from './components/AdminPage';
+import DashboardPage from './components/DashboardPage';
 import { Loader2 } from 'lucide-react';
 
 function AppContent() {
-  const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<'profile' | 'leaderboard' | 'admin'>('profile');
+  const { user, profile, loading } = useAuth();
+  const location = useLocation();
+  
+  // Check if user is admin
+  const isAdmin = profile?.email === 'carghya10@gmail.com';
 
   if (loading) {
     return (
@@ -20,21 +23,49 @@ function AppContent() {
   }
 
   if (!user) {
-    return <LandingPage />;
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="relative">
+          <Navigation currentPage="dashboard" />
+
+          <main>
+            <DashboardPage />
+          </main>
+        </div>
+      </div>
+    );
   }
 
+  // Redirect non-admin users away from admin page
+  if (location.pathname === '/admin' && !isAdmin) {
+    return <Navigate to="/profile" replace />;
+  }
+
+  // Get current page from pathname
+  const getCurrentPage = (pathname: string): 'profile' | 'leaderboard' | 'admin' | 'dashboard' => {
+    if (pathname === '/profile') return 'profile';
+    if (pathname === '/leaderboard') return 'leaderboard';
+    if (pathname === '/admin') return 'admin';
+    return 'dashboard';
+  };
+
+  const currentPage = getCurrentPage(location.pathname);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iIzFmMjkzNyIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjEiLz48L2c+PC9zdmc+')] opacity-20"></div>
-
+    <div className="min-h-screen bg-white">
       <div className="relative">
-        <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
+        <Navigation currentPage={currentPage} />
 
-        <main className="container mx-auto px-6 py-12">
-          {currentPage === 'profile' && <ProfilePage />}
-          {currentPage === 'leaderboard' && <LeaderboardPage />}
-          {currentPage === 'admin' && <AdminPage />}
+        <main>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
+        
       </div>
     </div>
   );
@@ -42,8 +73,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }

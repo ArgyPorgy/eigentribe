@@ -1,0 +1,636 @@
+import { useState, useEffect } from 'react';
+import { Clock, Globe, ExternalLink } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { addSubmissionToSheet } from '../lib/googleSheets';
+
+
+// Event data matching the design
+const eventData = {
+  title: "Eigen Creator League",
+  organization: "EigenTribe",
+  status: "Ongoing",
+  region: "Global",
+  totalPrizes: "$10,000",
+  endDate: new Date('2025-11-30'), // November 30, 2025
+  campaignDuration: "October 15 – November 30, 2025",
+  openTo: "All Creators",
+  overview: "The Eigen Creator League is a 6-week content campaign designed to reward creators, storytellers, and educators who can articulate the Eigen narrative across Crypto Twitter and beyond. Over the next six weeks, you'll participate in bi-weekly themed challenges, share your take through content, and compete for rewards from a $10,000 pool distributed bi-weekly and at the campaign's end.",
+  campaignStructure: "The campaign runs from October 15 to November 30, divided into three bi-weekly phases. Each phase focuses on a specific narrative from the Eigen ecosystem.",
+  phases: [
+    {
+      phase: "Phase 1",
+      dates: "Oct 15 – Oct 31",
+      theme: "$EIGEN: The Infra Backbone of EigenCloud",
+      reward: "$2,500",
+      goal: "Explain how $EIGEN secures and powers EigenCloud as its shared security and infra backbone."
+    },
+    {
+      phase: "Phase 2", 
+      dates: "Nov 1 – Nov 15",
+      theme: "The Big Tech Analogy: AWS → EigenCloud",
+      reward: "$2,500",
+      goal: "Compare EigenCloud to AWS/Google Cloud, showing how $EIGEN makes it verifiable, composable, and crypto-native."
+    },
+    {
+      phase: "Phase 3",
+      dates: "Nov 16 – Nov 30", 
+      theme: "EigenAI: Verifiable AI for the Internet of Value",
+      reward: "$2,500",
+      goal: "Showcase how EigenAI enables deterministic, verifiable AI and integrates with EigenCompute for trustless inference"
+    }
+  ],
+  finalBonus: "$2,500+",
+  howItWorks: [
+    "Create content around the active bi-weekly theme.",
+    "Share your ideas through threads, videos, articles, memes/shitposts or visual explainers.",
+    "Post your content on Twitter/X, tagging @EigenLayer and @eigentribe.",
+    "Submit your entry using the official submission form.",
+    "The EigenTribe team will review, track, and evaluate all submissions internally.",
+    "Rewards will be distributed retroactively based on the overall quality, consistency, and real-world impact of your work.",
+    "A public leaderboard will display active contributors and top creators throughout the season."
+  ],
+  themeDetails: [
+    {
+      title: "$EIGEN as EigenCloud's Infra Backbone",
+      description: "Show how $EIGEN acts as a shared security layer alongside ETH in EigenCloud. Explain how it powers restaking, intersubjective forking, AVSs, and protocols, serving as the infrastructure backbone of the entire ecosystem.",
+      formats: "Research-backed threads, explainers, visual dashboards.",
+      idealFor: "Researchers, analytical creators, and early ecosystem contributors"
+    },
+    {
+      title: "$EIGEN on the Big Tech Cloud Analogy", 
+      description: "Position EigenCloud as the AWS or Google Cloud of Web3, powered by $EIGEN. Break down how EigenCloud is verifiable, programmable, and composable — unlike opaque, centralized Big Tech clouds.",
+      formats: "Threads, short videos, meme explainers, data-backed comparisons.",
+      idealFor: "General creators, educators, and storytellers."
+    },
+    {
+      title: "EigenAI: Verifiable AI on EigenCloud",
+      description: "Dive into EigenAI, an OpenAI-compatible, verifiable AI layer built on EigenCloud. Showcase how developers can retrofit existing AI workflows, verify outputs on-chain, and integrate EigenCompute for trustless inference.",
+      formats: "Tutorials, walkthroughs, video explainers, mini-demos.",
+      idealFor: "Devs, technical creators, and AI enthusiasts."
+    }
+  ],
+  evaluationCriteria: [
+    { category: "Quality & Clarity", weight: "35%", description: "Engaging, well-structured, accessible content that simplifies complexity." },
+    { category: "Creativity", weight: "20%", description: "Hooks, storytelling, humor, or analogies that make content stand out." },
+    { category: "Research Depth", weight: "25%", description: "Use of data, dashboards, or technical accuracy." },
+    { category: "Engagement", weight: "10%", description: "Organic impressions and interactions (no boosted metrics)." },
+    { category: "Coverage", weight: "10%", description: "How well it captures the entire narrative angle." }
+  ],
+  resources: [
+    "📄 EIGEN: The Universal Intersubjective Work Token",
+    "📄 EigenCloud: Build Powerful Crypto Apps on Any Chain with the Verifiable Cloud", 
+    "📄 Delphi Digital report on EigenCloud",
+    "🌐 Video Demo on how to deploy verifiable AI agent using EigenAI",
+    "🌐 EigenCloud Dashboard",
+    "📊 General Analytics on EIGEN",
+    "📊 $EIGEN Usage in Protocols",
+    "📖 How $EIGEN Powers the Verifiable Cloud",
+    "📈 EigenEconomy",
+    "🌐 EigenCloud AVS Ecosystem",
+    "🌐 EigenCloud Apps Ecosystem",
+    "🎨 EigenCloud Media Assets",
+    "📣 EigenTribe Telegram (for questions and community chat)"
+  ],
+  terms: [
+    "Participation is voluntary and open to all.",
+    "Rewards are discretionary and based on retroactive evaluation.", 
+    "Artificial engagement, plagiarism, or misinformation will result in disqualification.",
+    "The organizing team reserves the right to adjust distribution and eligibility at its discretion."
+  ],
+  requirements: [
+    "Create content around the active bi-weekly theme",
+    "Post your content on Twitter/X, tagging @EigenLayer and @eigentribe",
+    "Submit your entry using the official submission form"
+  ],
+  rewards: {
+    description: "The entire campaign rewards are distributed as follows:",
+    prizes: [
+      "Phase 1: $2,500",
+      "Phase 2: $2,500", 
+      "Phase 3: $2,500"
+    ],
+    split: "Any unused pool from a phase will roll into the Final Leaderboard Bonus Pool.",
+    note: "Final Leaderboard Bonus Pool ($2,500+) awarded to the Top overall creators at the end of the campaign."
+  },
+  skills: ["Content Creation", "Social Media", "Research", "Education"]
+};
+
+export default function DashboardPage() {
+  const { user, signInWithGoogle } = useAuth();
+  const [timeRemaining, setTimeRemaining] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [showOpportunityModal, setShowOpportunityModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    walletAddress: '',
+    link: ''
+  });
+
+  // Show opportunity modal for non-logged-in users
+  useEffect(() => {
+    if (!user) {
+      setShowOpportunityModal(true);
+    }
+  }, [user]);
+
+  // Active timer countdown
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const endTime = eventData.endDate.getTime();
+      const difference = endTime - now;
+
+      if (difference > 0) {
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+        setTimeRemaining(`${days}d:${hours}h:${minutes}m:${seconds}s`);
+      } else {
+        setTimeRemaining('0d:0h:0m:0s');
+      }
+    };
+
+    updateTimer(); // Initial call
+    const interval = setInterval(updateTimer, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (formData.name.trim() && formData.walletAddress.trim() && formData.link.trim()) {
+      console.log('Submitting:', formData);
+      
+      try {
+        const success = await addSubmissionToSheet({
+          name: formData.name.trim(),
+          wallet: formData.walletAddress.trim(),
+          link: formData.link.trim()
+        });
+
+        if (success) {
+          alert('Submission successful! Your entry has been recorded.');
+          setShowModal(false);
+          setFormData({ name: '', walletAddress: '', link: '' });
+        } else {
+          alert('Submission failed. Please try again or contact support.');
+        }
+      } catch (error) {
+        console.error('Submission error:', error);
+        alert('An error occurred during submission. Please try again.');
+      }
+    } else {
+      alert('Please fill in all fields before submitting.');
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleGetStarted = async () => {
+    try {
+      await signInWithGoogle();
+      setShowOpportunityModal(false);
+    } catch (error) {
+      console.error('Failed to sign in:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header Section */}
+      <div className="border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="flex items-center justify-center gap-8">
+            {/* Logo */}
+            <div className="w-20 h-20 flex items-center justify-center">
+              <img 
+                src="https://pbs.twimg.com/profile_images/1967450224168943616/Za_8hiTn_400x400.jpg" 
+                alt="Logo" 
+                className="w-16 h-16 rounded-lg"
+              />
+            </div>
+            
+            {/* Title and Info */}
+            <div className="text-center">
+              <h1 className="text-4xl font-medium mb-3 text-black">{eventData.title}</h1>
+              <div className="flex items-center justify-center gap-6 text-sm font-light mb-2">
+                <span className="text-gray-600">by {eventData.organization}</span>
+                <span className="text-gray-400">•</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full animate-pulse bg-green-500"></div>
+                  <span className="text-green-600">{eventData.status}</span>
+                </div>
+                <span className="text-gray-400">•</span>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-gray-500" />
+                  <span className="text-gray-600">{eventData.region}</span>
+                </div>
+              </div>
+              <div className="text-sm font-light text-gray-600">
+                {eventData.campaignDuration}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Container */}
+      <div className="flex">
+        {/* Left Sidebar - Prizes & Submission */}
+        <div className="w-96 border-r border-gray-200 bg-white">
+          {/* Section Header */}
+          <div className="border-b border-gray-200 p-6">
+            <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
+              Prizes & Submission
+            </h2>
+          </div>
+          
+          <div className="p-6">
+            {/* Total Prizes */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#818BFF' }}>
+                <img 
+                  src="https://s2.coinmarketcap.com/static/img/coins/200x200/3408.png" 
+                  alt="EIGEN" 
+                  className="w-6 h-6"
+                />
+              </div>
+              <span className="text-lg font-light text-black">
+                {eventData.totalPrizes} Total Prizes
+              </span>
+            </div>
+
+            {/* Active Time Remaining */}
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#818BFF' }}>
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-mono text-lg font-light text-black">
+                {timeRemaining} Remaining
+              </span>
+            </div>
+
+            {/* Submission Button */}
+            <div className="mb-8">
+              <button
+                onClick={() => setShowModal(true)}
+                className="w-full px-6 py-4 font-black rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg text-white hover:opacity-90"
+                style={{ backgroundColor: '#1A0C6D' }}
+              >
+                Submit my Yap
+              </button>
+            </div>
+
+            {/* Skills Needed */}
+            <div className="mb-8">
+              <h3 className="text-sm font-light mb-4 text-gray-600">SKILLS NEEDED</h3>
+              <div className="flex flex-wrap gap-2">
+                {eventData.skills.map((skill, index) => (
+                  <span key={index} className="px-4 py-2 rounded-full text-sm font-light transition-all duration-300 hover:scale-105 text-black border border-gray-300" style={{ backgroundColor: '#B7C0E9' }}>
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h3 className="text-sm font-light mb-3 text-gray-600">CONTACT</h3>
+              <p className="text-sm leading-relaxed font-light text-gray-600">
+                Reach out <ExternalLink className="w-4 h-4 inline ml-1" /> if you have any questions about this listing
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 bg-white">
+          {/* Section Header */}
+          <div className="border-b border-gray-200 p-6">
+            <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
+              Details
+            </h2>
+          </div>
+
+          <div className="p-8">
+            {/* Campaign Info */}
+            <div className="mb-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                  <h3 className="text-lg font-medium mb-2 text-black">Campaign Duration</h3>
+                  <p className="font-light text-gray-700">{eventData.campaignDuration}</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                  <h3 className="text-lg font-medium mb-2 text-black">Total Reward Pool</h3>
+                  <p className="font-light text-gray-700">{eventData.totalPrizes}</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                  <h3 className="text-lg font-medium mb-2 text-black">Open to</h3>
+                  <p className="font-light text-gray-700">{eventData.openTo}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Overview Section */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Overview</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <p className="leading-relaxed text-lg font-light text-gray-700 mb-4">
+                  {eventData.overview}
+                </p>
+              </div>
+            </div>
+
+            {/* Campaign Structure */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Campaign Structure</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+                <p className="leading-relaxed text-lg font-light text-gray-700">
+                  {eventData.campaignStructure}
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {eventData.phases.map((phase, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-xl font-medium text-black mb-2">{phase.phase}</h3>
+                        <p className="font-light text-gray-600 mb-2">{phase.dates}</p>
+                        <p className="font-light text-gray-700">{phase.theme}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-medium text-black">{phase.reward}</p>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-medium text-black mb-2">Goals:</h4>
+                      <p className="font-light text-gray-700">{phase.goal}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-medium mb-2 text-black">Final Leaderboard Bonus Pool</h3>
+                <p className="font-light text-gray-700">{eventData.finalBonus} awarded to the Top overall creators at the end of the campaign.</p>
+              </div>
+            </div>
+
+            {/* How It Works */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">How It Works</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <ul className="space-y-4">
+                  {eventData.howItWorks.map((step, index) => (
+                    <li key={index} className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center mt-1 flex-shrink-0 shadow-sm" style={{ backgroundColor: '#818BFF' }}>
+                        <span className="text-sm font-black text-white">{index + 1}</span>
+                      </div>
+                      <span className="text-lg leading-relaxed font-light text-gray-700">
+                        {step}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Theme Details */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Theme Details</h2>
+              <div className="space-y-6">
+                {eventData.themeDetails.map((theme, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                    <h3 className="text-xl font-medium text-black mb-4">{theme.title}</h3>
+                    <p className="font-light text-gray-700 mb-4">{theme.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h4 className="font-medium text-black mb-2">Suggested Formats:</h4>
+                        <p className="font-light text-gray-700">{theme.formats}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h4 className="font-medium text-black mb-2">Ideal for:</h4>
+                        <p className="font-light text-gray-700">{theme.idealFor}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Evaluation Criteria */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Evaluation Criteria</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <div className="space-y-6">
+                  {eventData.evaluationCriteria.map((criteria, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-all duration-300">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-black mb-2">{criteria.category}</h3>
+                          <p className="font-light text-gray-700">{criteria.description}</p>
+                        </div>
+                        <div className="ml-4">
+                          <span className="px-3 py-1 rounded-full text-sm font-medium" style={{ backgroundColor: '#B7C0E9', color: '#000' }}>{criteria.weight}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Resources */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Resources</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <p className="font-light text-gray-700 mb-6 text-lg">You can use the following to learn, research, and create:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {eventData.resources.map((resource, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-all duration-300">
+                      <span className="font-light text-gray-700">{resource}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Terms */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Terms</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <ul className="space-y-4">
+                  {eventData.terms.map((term, index) => (
+                    <li key={index} className="flex items-start gap-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <span className="mt-1 font-bold text-lg" style={{ color: '#818BFF' }}>•</span>
+                      <span className="font-light text-gray-700 text-lg">{term}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Submission Requirements */}
+            <div className="mb-10">
+              <h2 className="text-2xl font-medium mb-6 text-black">Submission Requirements</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+                <ul className="space-y-4">
+                  {eventData.requirements.map((req, index) => (
+                    <li key={index} className="flex items-start gap-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center mt-1 flex-shrink-0 shadow-sm" style={{ backgroundColor: '#818BFF' }}>
+                        <span className="text-sm font-black text-white">{index + 1}</span>
+                      </div>
+                      <span className="text-lg leading-relaxed font-light text-gray-700">
+                        {req}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Rewards Section */}
+            <div>
+              <h2 className="text-2xl font-medium mb-6 text-black">Rewards</h2>
+              <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+                <p className="text-lg font-light text-gray-700">
+                  {eventData.rewards.description}
+                </p>
+              </div>
+              
+              <div className="space-y-4 mb-8">
+                {eventData.rewards.prizes.map((prize, index) => (
+                  <div key={index} className="flex items-center gap-4 p-6 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-black shadow-sm" style={{
+                      backgroundColor: index === 0 ? '#818BFF' : '#B7C0E9',
+                      color: '#000000'
+                    }}>
+                      {index + 1}
+                    </div>
+                    <span className="text-lg font-light text-black">{prize}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-8 rounded-xl mb-6 bg-white border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-medium text-black mb-4">Important Notes</h3>
+                <p className="text-lg leading-relaxed mb-4 font-light text-gray-700">
+                  {eventData.rewards.split}
+                </p>
+                <p className="text-lg leading-relaxed font-light text-gray-700">
+                  {eventData.rewards.note}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Submission Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md mx-4">
+            <h3 className="text-2xl font-medium mb-6 text-black">Submit Your Yap</h3>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-light text-gray-600 mb-2">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-light bg-white border border-gray-300 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-light text-gray-600 mb-2">Wallet Address</label>
+                <input
+                  type="text"
+                  name="walletAddress"
+                  value={formData.walletAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter your wallet address"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-light bg-white border border-gray-300 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-light text-gray-600 mb-2">Link</label>
+                <input
+                  type="text"
+                  name="link"
+                  value={formData.link}
+                  onChange={handleInputChange}
+                  placeholder="Submit link of your X's post"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-light bg-white border border-gray-300 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 px-4 py-3 font-light rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 px-4 py-3 font-black rounded-xl transition-all duration-300 text-white hover:opacity-90"
+                style={{ backgroundColor: '#1A0C6D' }}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opportunity Modal */}
+      {showOpportunityModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowOpportunityModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md mx-auto border border-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Live Opportunities Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <h2 className="text-lg font-medium text-black">Live Opportunities</h2>
+            </div>
+            
+            {/* Large Amount */}
+            <div className="text-center mb-6">
+              <div className="text-4xl font-bold text-black mb-2">$10,000</div>
+              <p className="text-lg font-light text-gray-700 mb-4">Get access to opportunities worth $10k!</p>
+              <p className="text-sm font-light text-gray-600">Take part in the Eigen Creator League and win rewards!</p>
+            </div>
+
+            {/* Get Started Button */}
+            <button
+              onClick={handleGetStarted}
+              className="w-full px-6 py-3 rounded-lg font-medium text-white hover:opacity-90 transition-all duration-200"
+              style={{ backgroundColor: '#1A0C6D' }}
+            >
+              Get Started
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

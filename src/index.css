@@ -1,3 +1,48 @@
+@font-face {
+  font-family: 'ABC Repro';
+  src: url('/ABCRepro-Hairline.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ABC Repro';
+  src: url('/ABCRepro-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ABC Repro';
+  src: url('/ABCRepro-Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'ABC Repro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+  
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+}
+
+@layer utilities {
+  .bg-lavender {
+    background-color: #B7C0E9;
+  }
+  
+  .border-lavender {
+    border-color: #B7C0E9;
+  }
+}

@@ -55,29 +55,29 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-400 animate-spin" />
+      <div className="flex items-center justify-center py-20 px-6">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-6 py-12">
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-2xl mb-4">
           <Trophy className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-4xl font-bold text-white mb-3">Leaderboard</h1>
-        <p className="text-slate-400">Top contributors ranked by points</p>
+        <h1 className="text-4xl font-medium text-black mb-3">Leaderboard</h1>
+        <p className="text-gray-600 font-light">Top contributors ranked by points</p>
       </div>
 
       {entries.length === 0 ? (
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-12 border border-slate-700/50 text-center">
-          <p className="text-slate-400">No leaderboard data yet. Check back soon!</p>
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+          <p className="text-gray-600 font-light">No leaderboard data yet. Check back soon!</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {entries.map((entry, index) => (
+          {entries.map((entry) => (
             <div
               key={entry.id}
               className={`bg-gradient-to-r ${getRankColor(
