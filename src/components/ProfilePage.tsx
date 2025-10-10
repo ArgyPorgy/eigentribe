@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
+import { User, Wallet, ExternalLink, Calendar, Loader2, Mail, LogOut } from 'lucide-react';
 import { supabase, Submission } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
-  const { profile, refreshProfile, user, loading: authLoading } = useAuth();
+  const { profile, refreshProfile, user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -13,11 +15,80 @@ export default function ProfilePage() {
     walletAddress: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [userSubmission, setUserSubmission] = useState<{
+    name: string;
+    wallet: string;
+    link: string;
+    email: string;
+  } | null>(null);
 
   // Debug logging
   console.log('ProfilePage - user:', user);
   console.log('ProfilePage - profile:', profile);
   console.log('ProfilePage - authLoading:', authLoading);
+
+  // Load user's submission data from localStorage
+  useEffect(() => {
+    if (user?.email) {
+      const submissionKey = `submission_${user.email}`;
+      const hasSubmitted = localStorage.getItem(submissionKey) === 'true';
+      
+      if (hasSubmitted) {
+        // Try to get submission data from localStorage
+        const submissionDataKey = `submission_data_${user.email}`;
+        const savedSubmissionData = localStorage.getItem(submissionDataKey);
+        
+        if (savedSubmissionData) {
+          try {
+            const parsedData = JSON.parse(savedSubmissionData);
+            setUserSubmission(parsedData);
+          } catch (error) {
+            console.error('Error parsing submission data:', error);
+          }
+        }
+      }
+    }
+  }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      // Clear storage first
+      clearSupabaseStorage();
+      
+      // Then sign out with local scope
+      await signOut();
+      
+      // Navigate to home
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear and redirect even if API fails
+      clearSupabaseStorage();
+      navigate('/');
+    }
+  };
+
+  const clearSupabaseStorage = () => {
+    // Clear localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Clear sessionStorage
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  };
+
+  // Redirect if not logged in
+  if (!user && !authLoading) {
+    navigate('/');
+    return null;
+  }
 
   useEffect(() => {
     if (profile) {
@@ -245,46 +316,101 @@ export default function ProfilePage() {
       </div>
 
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      {userSubmission ? (
+        <div className="relative overflow-hidden rounded-2xl">
+          {/* Background with gradient */}
+          <div 
+            className="absolute inset-0 opacity-5"
+            style={{ 
+              background: 'linear-gradient(135deg, #1A0C6D 0%, #C0C0DC 50%, #C4DAFF 100%)' 
+            }}
+          ></div>
+          
+          {/* Main content */}
+          <div className="relative bg-white border-2 rounded-2xl p-6 shadow-lg" style={{ borderColor: '#C0C0DC' }}>
+            {/* Header with colored accent */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-3 h-8 rounded-full"
+                  style={{ backgroundColor: '#1A0C6D' }}
+                ></div>
+                <h4 className="text-xl font-medium text-black">Your Yap Submission</h4>
+              </div>
+              <span 
+                className="px-4 py-2 rounded-full text-xs font-medium text-white shadow-sm"
+                style={{ backgroundColor: '#1A0C6D' }}
+              >
+                ✓ Submitted
+              </span>
+            </div>
+            
+            <div className="space-y-5">
+              {/* Name */}
+              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
+                <div className="flex-shrink-0">
+                  <User className="w-5 h-5 mt-0.5 text-black" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Name</p>
+                  <p className="text-black font-light">{userSubmission.name}</p>
+                </div>
+              </div>
+              
+              {/* Wallet Address */}
+              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF'}}>
+                <div className="flex-shrink-0">
+                  <Wallet className="w-5 h-5 mt-0.5 text-black" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Wallet Address</p>
+                  <p className="font-mono text-sm text-black break-all font-light">{userSubmission.wallet}</p>
+                </div>
+              </div>
+              
+              {/* Link */}
+              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
+                <div className="flex-shrink-0">
+                  <ExternalLink className="w-5 h-5 mt-0.5 text-black" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Content Link</p>
+                  <a 
+                    href={userSubmission.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline break-all font-light hover:opacity-80 transition-opacity text-black"
+                  >
+                    {userSubmission.link}
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="mt-6 pt-4 border-t-2" style={{ borderColor: '#C0C0DC' }}>
+              <p className="text-sm font-bold text-black">
+                Submitted on {new Date().toLocaleDateString()}
+              </p>
+            </div>
+          </div>
         </div>
-      ) : submissions.length === 0 ? (
+      ) : (
         <div className="bg-white border-lavender rounded-2xl p-12 text-center">
           <p className="text-gray-600 font-light">No submissions yet. Create your first submission!</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {submissions.map((submission) => (
-            <div
-              key={submission.id}
-              className="bg-white border-lavender rounded-2xl p-6 hover:border-blue-600 transition-all"
-            >
-              <h4 className="text-xl font-medium text-black mb-3">{submission.name}</h4>
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Wallet className="w-4 h-4" />
-                  <span className="font-mono text-xs truncate font-light">{submission.wallet_address}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span className="font-light">{formatDate(submission.created_at)}</span>
-                </div>
-              </div>
-              <a
-                href={submission.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 font-light transition-colors"
-                style={{ color: '#1A0C6D' }}
-              >
-                <span>View Project</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-          ))}
-        </div>
       )}
+
+      {/* Logout Button */}
+      <div className="mt-12 pt-8 border-t border-gray-200">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90 bg-red-600 hover:bg-red-700"
+        >
+          <LogOut className="w-5 h-5" />
+          Logout
+        </button>
+      </div>
     </div>
   );
 }

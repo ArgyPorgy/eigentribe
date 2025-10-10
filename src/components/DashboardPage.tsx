@@ -3,7 +3,6 @@ import { Clock, Globe, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { addSubmissionToSheet } from '../lib/googleSheets';
 
-
 // Event data matching the design
 const eventData = {
   title: "Eigen Creator League",
@@ -11,7 +10,7 @@ const eventData = {
   status: "Ongoing",
   region: "Global",
   totalPrizes: "$10,000",
-  endDate: new Date('2025-11-30'), // November 30, 2025
+  endDate: new Date('2025-11-30'),
   campaignDuration: "October 15 – November 30, 2025",
   openTo: "All Creators",
   overview: "The Eigen Creator League is a 6-week content campaign designed to reward creators, storytellers, and educators who can articulate the Eigen narrative across Crypto Twitter and beyond. Over the next six weeks, you'll participate in bi-weekly themed challenges, share your take through content, and compete for rewards from a $10,000 pool distributed bi-weekly and at the campaign's end.",
@@ -120,20 +119,30 @@ export default function DashboardPage() {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     walletAddress: '',
     link: ''
   });
 
-  // Show opportunity modal for non-logged-in users
   useEffect(() => {
     if (!user) {
       setShowOpportunityModal(true);
     }
   }, [user]);
 
-  // Active timer countdown
+  // Check if user has already submitted
+  useEffect(() => {
+    if (user?.email) {
+      const submissionKey = `submission_${user.email}`;
+      const hasSubmittedBefore = localStorage.getItem(submissionKey) === 'true';
+      setHasSubmitted(hasSubmittedBefore);
+    } else {
+      setHasSubmitted(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     const updateTimer = () => {
       const now = new Date().getTime();
@@ -152,13 +161,18 @@ export default function DashboardPage() {
       }
     };
 
-    updateTimer(); // Initial call
-    const interval = setInterval(updateTimer, 1000); // Update every second
-
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, []);
 
   const handleSubmit = async () => {
+    // Check if user has already submitted
+    if (hasSubmitted) {
+      alert('You have already submitted your entry. Only one submission per email is allowed.');
+      return;
+    }
+
     if (formData.name.trim() && formData.walletAddress.trim() && formData.link.trim()) {
       console.log('Submitting:', formData);
       
@@ -166,10 +180,31 @@ export default function DashboardPage() {
         const success = await addSubmissionToSheet({
           name: formData.name.trim(),
           wallet: formData.walletAddress.trim(),
-          link: formData.link.trim()
+          link: formData.link.trim(),
+          email: user?.email || 'anonymous' // Include email for tracking
         });
 
         if (success) {
+          // Mark submission as completed in localStorage
+          if (user?.email) {
+            const submissionKey = `submission_${user.email}`;
+            const submissionDataKey = `submission_data_${user.email}`;
+            
+            // Save submission status
+            localStorage.setItem(submissionKey, 'true');
+            
+            // Save submission data for display in profile
+            const submissionData = {
+              name: formData.name.trim(),
+              wallet: formData.walletAddress.trim(),
+              link: formData.link.trim(),
+              email: user.email
+            };
+            localStorage.setItem(submissionDataKey, JSON.stringify(submissionData));
+            
+            setHasSubmitted(true);
+          }
+          
           alert('Submission successful! Your entry has been recorded.');
           setShowModal(false);
           setFormData({ name: '', walletAddress: '', link: '' });
@@ -206,7 +241,6 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-white">
       {/* Header Section */}
       <div className="relative border-b border-gray-200">
-        {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
@@ -215,7 +249,6 @@ export default function DashboardPage() {
           }}
         ></div>
         
-        {/* Black Overlay */}
         <div 
           className="absolute inset-0 bg-black"
           style={{ 
@@ -224,19 +257,17 @@ export default function DashboardPage() {
           }}
         ></div>
         
-        {/* Content Overlay */}
         <div className="relative max-w-7xl mx-auto px-6 py-12" style={{ zIndex: 10 }}>
           <div className="flex items-center justify-center gap-8">
-            {/* Logo */}
             <div className="w-20 h-20 flex items-center justify-center">
               <img 
                 src="https://pbs.twimg.com/profile_images/1967450224168943616/Za_8hiTn_400x400.jpg" 
                 alt="Logo" 
                 className="w-16 h-16 rounded-lg"
+                style={{ border: '1px solid #C0C0DC' }}
               />
             </div>
             
-            {/* Title and Info */}
             <div className="text-center">
               <h1 className="text-4xl font-medium mb-3 text-white drop-shadow-lg">{eventData.title}</h1>
               <div className="flex items-center justify-center gap-6 text-sm font-light mb-2">
@@ -260,10 +291,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Content Container */}
-      <div className="flex">
-        {/* Left Sidebar - Prizes & Submission */}
-        <div className="w-96 border-r border-gray-200 bg-white">
+      {/* Main Content Container - MODIFIED FOR STICKY SIDEBAR */}
+      <div className="flex max-w-7xl mx-auto">
+        {/* Left Sidebar - STICKY */}
+        <aside className="w-96 border-r border-gray-200 bg-white sticky top-0 self-start h-screen overflow-y-auto">
           {/* Section Header */}
           <div className="border-b border-gray-200 p-6">
             <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
@@ -299,11 +330,24 @@ export default function DashboardPage() {
             {/* Submission Button */}
             <div className="mb-8">
               <button
-                onClick={() => setShowModal(true)}
-                className="w-full px-6 py-4 font-black rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg text-white hover:opacity-90"
-                style={{ backgroundColor: '#1A0C6D' }}
+                onClick={() => {
+                  if (hasSubmitted) {
+                    alert('You have already submitted your entry. Only one submission per email is allowed.');
+                  } else {
+                    setShowModal(true);
+                  }
+                }}
+                className={`w-full px-6 py-4 font-black rounded-xl transition-all duration-300 shadow-lg ${
+                  hasSubmitted 
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                    : 'transform hover:scale-105 text-white hover:opacity-90'
+                }`}
+                style={{ 
+                  backgroundColor: hasSubmitted ? '#9CA3AF' : '#1A0C6D' 
+                }}
+                disabled={hasSubmitted}
               >
-                Submit my Yap
+                {hasSubmitted ? 'Already Submitted ✓' : 'Submit Your Post'}
               </button>
             </div>
 
@@ -327,10 +371,10 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Main Content Area */}
-        <div className="flex-1 bg-white">
+        {/* Main Content Area - SCROLLABLE */}
+        <main className="flex-1 bg-white">
           {/* Section Header */}
           <div className="border-b border-gray-200 p-6">
             <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
@@ -550,14 +594,14 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
 
       {/* Submission Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md mx-4">
-            <h3 className="text-2xl font-medium mb-6 text-black">Submit Your Yap</h3>
+            <h3 className="text-2xl font-medium mb-6 text-black">Submit Your Post</h3>
             
             <div className="space-y-4 mb-6">
               <div>
@@ -626,20 +670,17 @@ export default function DashboardPage() {
             className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md mx-auto border border-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Live Opportunities Header */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <h2 className="text-lg font-medium text-black">Live Opportunities</h2>
             </div>
             
-            {/* Large Amount */}
             <div className="text-center mb-6">
               <div className="text-4xl font-bold text-black mb-2">$10,000</div>
               <p className="text-lg font-light text-gray-700 mb-4">Get access to opportunities worth $10k!</p>
               <p className="text-sm font-light text-gray-600">Take part in the Eigen Creator League and win rewards!</p>
             </div>
 
-            {/* Get Started Button */}
             <button
               onClick={handleGetStarted}
               className="w-full px-6 py-3 rounded-lg font-medium text-white hover:opacity-90 transition-all duration-200"

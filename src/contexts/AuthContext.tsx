@@ -102,12 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      setSession(session);
+      setUser(session?.user ?? null);
 
-        if (session?.user) {
-          console.log('Initial session user found:', session.user);
+      if (session?.user) {
+        console.log('Initial session user found:', session.user);
+        // Load profile asynchronously without blocking loading state
+        (async () => {
           let profileData = await fetchProfile(session.user.id);
 
           if (!profileData) {
@@ -117,21 +118,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           console.log('Setting initial profile:', profileData);
           setProfile(profileData);
-        }
+        })();
+      }
 
-        setLoading(false);
-      })();
+      // Set loading to false immediately after checking session
+      setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event, session);
+      
+      setSession(session);
+      setUser(session?.user ?? null);
 
-        if (session?.user) {
-          console.log('Session user found:', session.user);
+      if (session?.user) {
+        console.log('Session user found:', session.user);
+        // Load profile asynchronously without blocking
+        (async () => {
           let profileData = await fetchProfile(session.user.id);
 
           if (!profileData) {
@@ -141,12 +146,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           console.log('Setting profile:', profileData);
           setProfile(profileData);
-        } else {
-          setProfile(null);
+        })();
+      } else {
+        setProfile(null);
+        
+        // Clear storage when signed out
+        if (event === 'SIGNED_OUT') {
+          clearSupabaseStorage();
         }
+      }
 
-        setLoading(false);
-      })();
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -167,10 +177,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore 403 errors and clear local session manually
+      if (error?.status === 403 || error?.name === 'AuthSessionMissingError') {
+        console.log('Session already expired, clearing local session manually');
+        
+        // Clear Supabase cookies
+        const cookieNames = document.cookie.split(';').map(c => c.split('=')[0].trim());
+        cookieNames.forEach(name => {
+          if (name.startsWith('sb-')) {
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+          }
+        });
+        
+        // Clear localStorage items
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('supabase') || key.includes('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear local state
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+        
+        console.log('Local session cleared successfully');
+      } else {
+        console.error('Error signing out:', error);
+        throw error;
+      }
     }
   };
 

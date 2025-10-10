@@ -18,22 +18,13 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="relative">
-          <Navigation currentPage="dashboard" />
-
-          <main>
-            <DashboardPage />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
   // Block access to admin page completely
   if (location.pathname === '/admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Block access to profile page if not logged in
+  if (!user && location.pathname === '/profile') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -54,8 +45,8 @@ function AppContent() {
         <main>
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
