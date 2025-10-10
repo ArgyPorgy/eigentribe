@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
-import { User, Wallet, ExternalLink, Calendar, Loader2, Mail } from 'lucide-react';
 import { supabase, Submission } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -180,7 +179,6 @@ export default function ProfilePage() {
         </div>
 
         {editingProfile ? (
-          <form onSubmit={handleProfileUpdate} className="space-y-4 mt-6">
           <form onSubmit={handleProfileUpdate} className="space-y-4 mt-6">
             <div>
               <label className="block text-sm font-light text-gray-600 mb-2">Display Name</label>
