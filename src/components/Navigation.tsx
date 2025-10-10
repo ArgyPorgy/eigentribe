@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { User, Trophy, Settings, LogOut, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminCheck } from '../hooks/useAdminCheck';
 
 interface NavigationProps {
   currentPage: 'profile' | 'leaderboard' | 'admin' | 'dashboard';
@@ -8,9 +9,7 @@ interface NavigationProps {
 
 export default function Navigation({ currentPage }: NavigationProps) {
   const { profile, signOut, signInWithGoogle, user } = useAuth();
-  
-  // Admin check using environment variable
-  const isAdmin = profile?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  const { isAdmin } = useAdminCheck(profile?.email);
   
 
   const handleSignOut = async () => {

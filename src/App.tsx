@@ -6,13 +6,14 @@ import LeaderboardPage from './components/LeaderboardPage';
 import AdminPage from './components/AdminPage';
 import DashboardPage from './components/DashboardPage';
 import { Loader2 } from 'lucide-react';
+import { useAdminCheck } from './hooks/useAdminCheck';
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
   
-  // Check if user is admin
-  const isAdmin = profile?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  // Check if user is admin using server-side function
+  const { isAdmin } = useAdminCheck(profile?.email);
 
   if (loading) {
     return (

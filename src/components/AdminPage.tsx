@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import { Upload, Loader2, CheckCircle, AlertCircle, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminCheck } from '../hooks/useAdminCheck';
 
 export default function AdminPage() {
   const { profile } = useAuth();
+  const { isAdmin, loading } = useAdminCheck(profile?.email);
   
-  // Check if user is admin
-  const isAdmin = profile?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50">
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
+            <p className="text-white">Checking admin status...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   if (!isAdmin) {
     return (
