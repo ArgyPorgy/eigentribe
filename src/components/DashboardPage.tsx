@@ -205,8 +205,27 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header Section */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="relative border-b border-gray-200">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ 
+            backgroundImage: 'url(/Egbg.png)',
+            zIndex: 1
+          }}
+        ></div>
+        
+        {/* Black Overlay */}
+        <div 
+          className="absolute inset-0 bg-black"
+          style={{ 
+            opacity: 0.4,
+            zIndex: 2
+          }}
+        ></div>
+        
+        {/* Content Overlay */}
+        <div className="relative max-w-7xl mx-auto px-6 py-12" style={{ zIndex: 10 }}>
           <div className="flex items-center justify-center gap-8">
             {/* Logo */}
             <div className="w-20 h-20 flex items-center justify-center">
@@ -219,21 +238,21 @@ export default function DashboardPage() {
             
             {/* Title and Info */}
             <div className="text-center">
-              <h1 className="text-4xl font-medium mb-3 text-black">{eventData.title}</h1>
+              <h1 className="text-4xl font-medium mb-3 text-white drop-shadow-lg">{eventData.title}</h1>
               <div className="flex items-center justify-center gap-6 text-sm font-light mb-2">
-                <span className="text-gray-600">by {eventData.organization}</span>
-                <span className="text-gray-400">•</span>
+                <span className="text-gray-200 drop-shadow-md">by {eventData.organization}</span>
+                <span className="text-gray-300">•</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full animate-pulse bg-green-500"></div>
-                  <span className="text-green-600">{eventData.status}</span>
+                  <div className="w-2 h-2 rounded-full animate-pulse bg-green-400"></div>
+                  <span className="text-green-300 drop-shadow-md">{eventData.status}</span>
                 </div>
-                <span className="text-gray-400">•</span>
+                <span className="text-gray-300">•</span>
                 <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-600">{eventData.region}</span>
+                  <Globe className="w-4 h-4 text-gray-200" />
+                  <span className="text-gray-200 drop-shadow-md">{eventData.region}</span>
                 </div>
               </div>
-              <div className="text-sm font-light text-gray-600">
+              <div className="text-sm font-light text-gray-200 drop-shadow-md">
                 {eventData.campaignDuration}
               </div>
             </div>
