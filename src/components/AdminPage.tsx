@@ -6,8 +6,7 @@ export default function AdminPage() {
   const { profile } = useAuth();
   
   // Check if user is admin
-  const serviceEmail = import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const isAdmin = profile?.email === serviceEmail;
+  const isAdmin = profile?.email === import.meta.env.VITE_ADMIN_EMAIL;
   
   if (!isAdmin) {
     return (

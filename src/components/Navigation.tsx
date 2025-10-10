@@ -9,9 +9,9 @@ interface NavigationProps {
 export default function Navigation({ currentPage }: NavigationProps) {
   const { profile, signOut, signInWithGoogle, user } = useAuth();
   
-  // Check if user is admin
-  const serviceEmail = import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const isAdmin = profile?.email === serviceEmail;
+  // Admin check using environment variable
+  const isAdmin = profile?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  
 
   const handleSignOut = async () => {
     try {
