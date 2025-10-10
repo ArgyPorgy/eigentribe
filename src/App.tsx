@@ -3,18 +3,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import ProfilePage from './components/ProfilePage';
 import LeaderboardPage from './components/LeaderboardPage';
-import AdminPage from './components/AdminPage';
 import DashboardPage from './components/DashboardPage';
 import { Loader2 } from 'lucide-react';
-import { useAdminCheck } from './hooks/useAdminCheck';
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
   
-  // Check if user is admin using server-side function
-  const { isAdmin } = useAdminCheck(profile?.email);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -37,16 +32,15 @@ function AppContent() {
     );
   }
 
-  // Redirect non-admin users away from admin page
-  if (location.pathname === '/admin' && !isAdmin) {
-    return <Navigate to="/profile" replace />;
+  // Block access to admin page completely
+  if (location.pathname === '/admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Get current page from pathname
-  const getCurrentPage = (pathname: string): 'profile' | 'leaderboard' | 'admin' | 'dashboard' => {
+  const getCurrentPage = (pathname: string): 'profile' | 'leaderboard' | 'dashboard' => {
     if (pathname === '/profile') return 'profile';
     if (pathname === '/leaderboard') return 'leaderboard';
-    if (pathname === '/admin') return 'admin';
     return 'dashboard';
   };
 
@@ -62,7 +56,6 @@ function AppContent() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/admin" element={<AdminPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>

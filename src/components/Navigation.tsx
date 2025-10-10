@@ -1,15 +1,13 @@
 import { Link } from 'react-router-dom';
-import { User, Trophy, Settings, LogOut, LayoutDashboard } from 'lucide-react';
+import { User, Trophy, LogOut, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdminCheck } from '../hooks/useAdminCheck';
 
 interface NavigationProps {
-  currentPage: 'profile' | 'leaderboard' | 'admin' | 'dashboard';
+  currentPage: 'profile' | 'leaderboard' | 'dashboard';
 }
 
 export default function Navigation({ currentPage }: NavigationProps) {
   const { profile, signOut, signInWithGoogle, user } = useAuth();
-  const { isAdmin } = useAdminCheck(profile?.email);
   
 
   const handleSignOut = async () => {
@@ -69,16 +67,6 @@ export default function Navigation({ currentPage }: NavigationProps) {
                 Leaderboard
               </Link>
 
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className={`px-4 py-2 rounded-lg font-light transition-all flex items-center gap-2 ${currentPage === 'admin' ? 'text-white' : 'text-gray-600 hover:text-black'}`}
-                  style={currentPage === 'admin' ? { backgroundColor: '#1A0C6D' } : {}}
-                >
-                  <Settings className="w-4 h-4" />
-                  Admin
-                </Link>
-              )}
             </div>
           </div>
 
