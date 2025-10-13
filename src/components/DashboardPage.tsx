@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Clock, Globe, ExternalLink, User } from 'lucide-react';
+import { Clock, Globe, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { addSubmissionToSheet } from '../lib/googleSheets';
 
 // Declare grecaptcha on window
 declare global {
   interface Window {
-    grecaptcha: any;
-    onCaptchaSuccess: (token: string) => void;
+    grecaptcha?: any;
+    onCaptchaSuccess?: (token: string) => void;
   }
 }
 
@@ -357,23 +357,50 @@ export default function DashboardPage() {
 
   // Render reCAPTCHA when modal opens
   useEffect(() => {
-    if (showModal && window.grecaptcha && window.grecaptcha.render) {
-      // Wait a bit for the DOM to be ready
-      setTimeout(() => {
-        const container = document.getElementById('recaptcha-container');
-        if (container && !container.hasChildNodes()) {
-          try {
-            const widgetId = window.grecaptcha.render('recaptcha-container', {
-              sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
-              callback: 'onCaptchaSuccess'
-            });
-            setCaptchaWidgetId(widgetId);
-          } catch (error) {
-            console.error('reCAPTCHA render error:', error);
-          }
-        }
-      }, 100);
-    }
+    if (!showModal) return;
+
+    const renderCaptcha = () => {
+      const container = document.getElementById('recaptcha-container');
+      
+      if (!container) {
+        console.log('reCAPTCHA container not found');
+        return;
+      }
+
+      if (container.hasChildNodes()) {
+        console.log('reCAPTCHA already rendered');
+        return;
+      }
+
+      if (!window.grecaptcha) {
+        console.log('grecaptcha not loaded yet, retrying...');
+        setTimeout(renderCaptcha, 200);
+        return;
+      }
+
+      if (!window.grecaptcha.render) {
+        console.log('grecaptcha.render not available, waiting for ready...');
+        window.grecaptcha.ready(() => {
+          renderCaptcha();
+        });
+        return;
+      }
+
+      try {
+        console.log('Rendering reCAPTCHA with site key:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
+        const widgetId = window.grecaptcha.render('recaptcha-container', {
+          sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
+          callback: 'onCaptchaSuccess'
+        });
+        setCaptchaWidgetId(widgetId);
+        console.log('reCAPTCHA rendered successfully, widget ID:', widgetId);
+      } catch (error) {
+        console.error('reCAPTCHA render error:', error);
+      }
+    };
+
+    // Start rendering after a short delay to ensure DOM is ready
+    setTimeout(renderCaptcha, 200);
   }, [showModal]);
 
   const handleGetStarted = async () => {
