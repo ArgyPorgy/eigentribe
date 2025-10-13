@@ -3,6 +3,14 @@ import { Clock, Globe, ExternalLink, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { addSubmissionToSheet } from '../lib/googleSheets';
 
+// Declare grecaptcha on window
+declare global {
+  interface Window {
+    grecaptcha: any;
+    onCaptchaSuccess: (token: string) => void;
+  }
+}
+
 // Event data matching the design
 const eventData = {
   title: "Eigen Creator League",
@@ -120,11 +128,42 @@ export default function DashboardPage() {
   const [showModal, setShowModal] = useState(false);
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    name?: string;
+    link?: string;
+    contentTags?: string;
+  }>({});
   const [formData, setFormData] = useState({
     name: '',
     walletAddress: '',
-    link: ''
+    link: '',
+    contentTags: [] as string[]
   });
+
+  // Load saved name and wallet address for the user
+  useEffect(() => {
+    if (user?.email) {
+      const userInfoKey = `user_info_${user.email}`;
+      const savedInfo = localStorage.getItem(userInfoKey);
+      
+      if (savedInfo) {
+        try {
+          const { name, walletAddress } = JSON.parse(savedInfo);
+          setFormData(prev => ({
+            ...prev,
+            name: name || '',
+            walletAddress: walletAddress || ''
+          }));
+        } catch (error) {
+          console.error('Error loading saved user info:', error);
+        }
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -156,13 +195,58 @@ export default function DashboardPage() {
   }, []);
 
   const handleSubmit = async () => {
+    console.log('Submit clicked, formData:', formData);
+    
     // Ensure user is logged in
     if (!user) {
+      console.log('User not logged in');
       setShowLoginModal(true);
       return;
     }
 
-    if (formData.name.trim() && formData.walletAddress.trim() && formData.link.trim()) {
+    // Check if captcha is verified
+    if (!captchaToken) {
+      console.log('Captcha not verified');
+      setErrorMessage('Please complete the reCAPTCHA verification.');
+      setShowErrorModal(true);
+      return;
+    }
+
+    // Validate name (text only, no numbers)
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!nameRegex.test(formData.name.trim())) {
+      console.log('Name validation failed:', formData.name);
+      setValidationErrors({ name: 'Name must contain only letters and spaces.' });
+      setErrorMessage('Name must contain only letters and spaces.');
+      setShowErrorModal(true);
+      return;
+    }
+
+    // Validate link (must be a valid URL)
+    const urlRegex = /^(https?:\/\/)?([\da-zA-Z\.-]+)\.([a-zA-Z\.]{2,})([\/\w \.\-\?=&%#]*)*\/?$/i;
+    if (!urlRegex.test(formData.link.trim())) {
+      console.log('Link validation failed:', formData.link);
+      setValidationErrors({ link: 'Please enter a valid URL for the link.' });
+      setErrorMessage('Please enter a valid URL for the link.');
+      setShowErrorModal(true);
+      return;
+    }
+
+    console.log('All validations passed, proceeding to submit');
+
+    // Check if at least one content tag is selected
+    if (formData.contentTags.length === 0) {
+      setValidationErrors({ contentTags: 'Please select at least one content tag.' });
+      setErrorMessage('Please select at least one content tag.');
+      setShowErrorModal(true);
+      return;
+    }
+
+    // Clear validation errors if all validations pass
+    setValidationErrors({});
+
+    // Check if all required fields are filled
+    if (formData.name.trim() && formData.walletAddress.trim() && formData.link.trim() && formData.contentTags.length > 0) {
       console.log('Submitting:', formData);
       
       try {
@@ -170,7 +254,8 @@ export default function DashboardPage() {
           name: formData.name.trim(),
           wallet: formData.walletAddress.trim(),
           link: formData.link.trim(),
-          email: user.email
+          email: user.email,
+          contentTags: formData.contentTags
         });
 
         if (success) {
@@ -185,26 +270,44 @@ export default function DashboardPage() {
               wallet: formData.walletAddress.trim(),
               link: formData.link.trim(),
               email: user.email,
+              contentTags: formData.contentTags,
               timestamp: new Date().toISOString(),
               date: new Date().toLocaleDateString()
             };
             
             existingSubmissions.push(newSubmission);
             localStorage.setItem(submissionsKey, JSON.stringify(existingSubmissions));
+
+            // Save name and wallet address for future submissions
+            const userInfoKey = `user_info_${user.email}`;
+            localStorage.setItem(userInfoKey, JSON.stringify({
+              name: formData.name.trim(),
+              walletAddress: formData.walletAddress.trim()
+            }));
           }
           
-          alert('Submission successful! Your entry has been recorded.');
+          setErrorMessage('Submission successful! Your entry has been recorded.');
+          setShowErrorModal(true);
           setShowModal(false);
-          setFormData({ name: '', walletAddress: '', link: '' });
+          // Only clear the link and tags, keep name and wallet address
+          setFormData(prev => ({ ...prev, link: '', contentTags: [] }));
+          // Reset captcha
+          setCaptchaToken(null);
+          if (window.grecaptcha && captchaWidgetId !== null) {
+            window.grecaptcha.reset(captchaWidgetId);
+          }
         } else {
-          alert('Submission failed. Please try again or contact support.');
+          setErrorMessage('Submission failed. Please try again or contact support.');
+          setShowErrorModal(true);
         }
       } catch (error) {
         console.error('Submission error:', error);
-        alert('An error occurred during submission. Please try again.');
+        setErrorMessage('An error occurred during submission. Please try again.');
+        setShowErrorModal(true);
       }
     } else {
-      alert('Please fill in all fields before submitting.');
+      setErrorMessage('Please fill in all required fields and select at least one content tag.');
+      setShowErrorModal(true);
     }
   };
 
@@ -214,7 +317,64 @@ export default function DashboardPage() {
       ...prev,
       [name]: value
     }));
+    
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[name as keyof typeof validationErrors]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: undefined
+      }));
+    }
   };
+
+  const handleTagToggle = (tag: string) => {
+    setFormData(prev => ({
+      ...prev,
+      contentTags: prev.contentTags.includes(tag)
+        ? prev.contentTags.filter(t => t !== tag)
+        : [...prev.contentTags, tag]
+    }));
+    
+    // Clear content tags validation error when user selects a tag
+    if (validationErrors.contentTags) {
+      setValidationErrors(prev => ({
+        ...prev,
+        contentTags: undefined
+      }));
+    }
+  };
+
+  // Set up reCAPTCHA callback
+  useEffect(() => {
+    window.onCaptchaSuccess = (token: string) => {
+      setCaptchaToken(token);
+    };
+    
+    return () => {
+      window.onCaptchaSuccess = () => {};
+    };
+  }, []);
+
+  // Render reCAPTCHA when modal opens
+  useEffect(() => {
+    if (showModal && window.grecaptcha && window.grecaptcha.render) {
+      // Wait a bit for the DOM to be ready
+      setTimeout(() => {
+        const container = document.getElementById('recaptcha-container');
+        if (container && !container.hasChildNodes()) {
+          try {
+            const widgetId = window.grecaptcha.render('recaptcha-container', {
+              sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
+              callback: 'onCaptchaSuccess'
+            });
+            setCaptchaWidgetId(widgetId);
+          } catch (error) {
+            console.error('reCAPTCHA render error:', error);
+          }
+        }
+      }, 100);
+    }
+  }, [showModal]);
 
   const handleGetStarted = async () => {
     try {
@@ -348,8 +508,16 @@ export default function DashboardPage() {
             <div>
               <h3 className="text-sm font-light mb-3 text-gray-600">CONTACT</h3>
               <p className="text-sm leading-relaxed font-light text-gray-600">
-                Reach out <ExternalLink className="w-4 h-4 inline ml-1" /> if you have any questions about this listing
-              </p>
+  <a
+    href="https://t.me/Sambhav455"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="underline hover:opacity-80 transition-opacity"
+  >
+    Reach out
+  </a>{' '}
+  if you have any questions about this listing
+</p>
             </div>
           </div>
         </aside>
@@ -586,19 +754,26 @@ export default function DashboardPage() {
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-light text-gray-600 mb-2">Name</label>
+                <label className="block text-sm font-light text-gray-600 mb-2">Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 rounded-xl text-sm font-light bg-white border border-gray-300 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300"
+                  className={`w-full px-4 py-3 rounded-xl text-sm font-light bg-white border text-black placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 ${
+                    validationErrors.name 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-600'
+                  }`}
                 />
+                {validationErrors.name && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>
+                )}
               </div>
               
               <div>
-                <label className="block text-sm font-light text-gray-600 mb-2">Wallet Address</label>
+                <label className="block text-sm font-light text-gray-600 mb-2">Wallet Address *</label>
                 <input
                   type="text"
                   name="walletAddress"
@@ -610,21 +785,68 @@ export default function DashboardPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-light text-gray-600 mb-2">Link</label>
+                <label className="block text-sm font-light text-gray-600 mb-2">Link *</label>
                 <input
                   type="text"
                   name="link"
                   value={formData.link}
                   onChange={handleInputChange}
                   placeholder="Submit link of your X's post"
-                  className="w-full px-4 py-3 rounded-xl text-sm font-light bg-white border border-gray-300 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300"
+                  className={`w-full px-4 py-3 rounded-xl text-sm font-light bg-white border text-black placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-300 ${
+                    validationErrors.link 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-600'
+                  }`}
                 />
+                {validationErrors.link && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.link}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-light text-gray-600 mb-2">Content Tags (Select at least one) *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['Video (more than 1 min)', 'Short', 'Twitter article', 'Thread', 'Post', 'Reply/Comment'].map((tag) => (
+                    <label 
+                      key={tag}
+                      className="flex items-center gap-2 p-3 rounded-lg border border-gray-300 cursor-pointer hover:bg-gray-50 transition-all duration-300"
+                      style={{
+                        backgroundColor: formData.contentTags.includes(tag) ? '#B7C0E9' : 'white',
+                        borderColor: formData.contentTags.includes(tag) ? '#1A0C6D' : '#d1d5db'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.contentTags.includes(tag)}
+                        onChange={() => handleTagToggle(tag)}
+                        className="w-4 h-4 rounded border-gray-300 focus:ring-2 focus:ring-blue-600"
+                        style={{ accentColor: '#1A0C6D' }}
+                      />
+                      <span className="text-sm font-light text-black">{tag}</span>
+                    </label>
+                  ))}
+                </div>
+                {validationErrors.contentTags && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.contentTags}</p>
+                )}
+              </div>
+
+              {/* reCAPTCHA */}
+              <div className="flex justify-center">
+                <div id="recaptcha-container"></div>
               </div>
             </div>
             
             <div className="flex gap-3">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setCaptchaToken(null);
+                  setValidationErrors({});
+                  if (window.grecaptcha && captchaWidgetId !== null) {
+                    window.grecaptcha.reset(captchaWidgetId);
+                  }
+                }}
                 className="flex-1 px-4 py-3 font-light rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all duration-300"
               >
                 Cancel
@@ -738,6 +960,24 @@ export default function DashboardPage() {
                 Sign In with Google
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error/Success Modal */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <p className="text-lg font-light text-black text-center mb-6">
+              {errorMessage}
+            </p>
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="w-full px-4 py-3 font-medium rounded-xl transition-all duration-300 text-white hover:opacity-90"
+              style={{ backgroundColor: '#1A0C6D' }}
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

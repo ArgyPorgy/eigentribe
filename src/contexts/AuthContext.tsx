@@ -14,6 +14,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to clear Supabase storage
+const clearSupabaseStorage = () => {
+  // Clear localStorage
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.includes('supabase')) {
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Clear sessionStorage
+  Object.keys(sessionStorage).forEach(key => {
+    if (key.startsWith('sb-') || key.includes('supabase')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+  
+  // Clear cookies
+  document.cookie.split(';').forEach(cookie => {
+    const name = cookie.split('=')[0].trim();
+    if (name.startsWith('sb-')) {
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    }
+  });
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -47,12 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('User metadata:', user.user_metadata);
     console.log('User email:', user.email);
     
-    // Only include columns that exist in the table
     const profileData = {
       id: user.id,
       email: user.email!,
       name: user.user_metadata.full_name || user.user_metadata.name || user.email?.split('@')[0],
-      // Remove avatar_url since it doesn't exist in the table
     };
     
     console.log('Profile data to insert:', profileData);
@@ -91,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Test Supabase connection first
     console.log('🔍 Testing Supabase connection...');
     supabase.from('profiles').select('count').then(({ data, error }) => {
       if (error) {
@@ -107,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         console.log('Initial session user found:', session.user);
-        // Load profile asynchronously without blocking loading state
+        console.log('Provider token available:', !!session.provider_token);
+        
         (async () => {
           let profileData = await fetchProfile(session.user.id);
 
@@ -121,7 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
       }
 
-      // Set loading to false immediately after checking session
       setLoading(false);
     });
 
@@ -135,7 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         console.log('Session user found:', session.user);
-        // Load profile asynchronously without blocking
+        console.log('Provider token available:', !!session.provider_token);
+        
         (async () => {
           let profileData = await fetchProfile(session.user.id);
 
@@ -150,7 +174,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         
-        // Clear storage when signed out
         if (event === 'SIGNED_OUT') {
           clearSupabaseStorage();
         }
@@ -167,6 +190,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+        // Request specific scopes to get ID token
+        scopes: 'openid email profile'
       },
     });
 
@@ -178,33 +207,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      clearSupabaseStorage();
+      await supabase.auth.signOut({ scope: 'local' });
+      
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      
     } catch (error) {
-      // Ignore 403 errors and clear local session manually
+      // Ignore errors and clear manually
       if (error?.status === 403 || error?.name === 'AuthSessionMissingError') {
-        console.log('Session already expired, clearing local session manually');
-        
-        // Clear Supabase cookies
-        const cookieNames = document.cookie.split(';').map(c => c.split('=')[0].trim());
-        cookieNames.forEach(name => {
-          if (name.startsWith('sb-')) {
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
-          }
-        });
-        
-        // Clear localStorage items
-        Object.keys(localStorage).forEach(key => {
-          if (key.includes('supabase') || key.includes('sb-')) {
-            localStorage.removeItem(key);
-          }
-        });
-        
-        // Clear local state
+        console.log('Session already expired, cleared manually');
+        clearSupabaseStorage();
         setUser(null);
         setProfile(null);
         setSession(null);
-        
-        console.log('Local session cleared successfully');
       } else {
         console.error('Error signing out:', error);
         throw error;

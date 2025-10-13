@@ -21,6 +21,7 @@ export default function ProfilePage() {
     wallet: string;
     link: string;
     email: string;
+    contentTags?: string[];
     timestamp: string;
     date: string;
   }>>([]);
@@ -332,29 +333,46 @@ export default function ProfilePage() {
                 key={submission.id} 
                 className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-center justify-between">
-                  {/* Left side - Submission info */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
-                      <span className="text-white text-sm font-bold">#{submissionNumber}</span>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    {/* Left side - Submission info */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+                        <span className="text-white text-sm font-bold">#{submissionNumber}</span>
+                      </div>
+                      <div>
+                        <p className="text-black font-medium">Submission #{submissionNumber}</p>
+                        <p className="text-gray-500 text-sm font-light">submitted this • {submission.date}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-black font-medium">Submission #{submissionNumber}</p>
-                      <p className="text-gray-500 text-sm font-light">submitted this • {submission.date}</p>
-                    </div>
+                    
+                    {/* Right side - View button */}
+                    <a 
+                      href={submission.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-lg font-medium text-white hover:opacity-90 transition-all flex items-center gap-2"
+                      style={{ backgroundColor: '#1A0C6D' }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View
+                    </a>
                   </div>
                   
-                  {/* Right side - View button */}
-                  <a 
-                    href={submission.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-lg font-medium text-white hover:opacity-90 transition-all flex items-center gap-2"
-                    style={{ backgroundColor: '#1A0C6D' }}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View
-                  </a>
+                  {/* Content Tags */}
+                  {submission.contentTags && submission.contentTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 ml-13">
+                      {submission.contentTags.map((tag: string, tagIndex: number) => (
+                        <span 
+                          key={tagIndex}
+                          className="px-3 py-1 rounded-full text-xs font-light text-black border border-gray-300"
+                          style={{ backgroundColor: '#B7C0E9' }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );

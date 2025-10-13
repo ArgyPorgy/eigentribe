@@ -18,6 +18,8 @@ This application requires Supabase for authentication and database functionality
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+VITE_GOOGLE_APPS_SCRIPT_URL=your_google_apps_script_url_here
 ```
 
 ### 3. Database Setup
@@ -190,3 +192,37 @@ Once set up, submissions from the "Submit my Yap" form will automatically be sto
 - Column C: Link
 
 The system will try Google Apps Script first, then fallback to Google Forms if the first method fails.
+
+## Google reCAPTCHA v2 Setup
+
+To prevent spam and bot submissions, the application uses Google reCAPTCHA v2.
+
+### Setup Steps:
+
+1. **Get reCAPTCHA Keys:**
+   - Go to [Google reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin)
+   - Click "Create" or "+" to register a new site
+   - Choose "reCAPTCHA v2" → "I'm not a robot" Checkbox
+   - Add your domain(s):
+     - For local development: `localhost`
+     - For production: your actual domain (e.g., `yourdomain.com`)
+   - Accept terms and submit
+
+2. **Add Site Key to Environment:**
+   - Copy the "Site Key" from the reCAPTCHA admin console
+   - Add it to your `.env.local` file:
+   ```env
+   VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+   ```
+
+3. **How it Works:**
+   - When users click "Submit" on the submission form, they must complete the reCAPTCHA challenge
+   - The form won't submit until the captcha is verified
+   - After successful submission, the captcha resets for the next submission
+
+### Testing reCAPTCHA:
+- In development (`localhost`), reCAPTCHA will show test challenges
+- The captcha appears below the content tags in the submission modal
+- Users must check the "I'm not a robot" box before submitting
+
+**Note:** The reCAPTCHA site key is safe to expose in client-side code. It's meant to be public.
