@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Globe, ExternalLink } from 'lucide-react';
+import { Clock, Globe, ExternalLink, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { addSubmissionToSheet } from '../lib/googleSheets';
 
@@ -119,7 +119,7 @@ export default function DashboardPage() {
   const [timeRemaining, setTimeRemaining] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     walletAddress: '',
@@ -129,17 +129,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) {
       setShowOpportunityModal(true);
-    }
-  }, [user]);
-
-  // Check if user has already submitted
-  useEffect(() => {
-    if (user?.email) {
-      const submissionKey = `submission_${user.email}`;
-      const hasSubmittedBefore = localStorage.getItem(submissionKey) === 'true';
-      setHasSubmitted(hasSubmittedBefore);
-    } else {
-      setHasSubmitted(false);
     }
   }, [user]);
 
@@ -167,9 +156,9 @@ export default function DashboardPage() {
   }, []);
 
   const handleSubmit = async () => {
-    // Check if user has already submitted
-    if (hasSubmitted) {
-      alert('You have already submitted your entry. Only one submission per email is allowed.');
+    // Ensure user is logged in
+    if (!user) {
+      setShowLoginModal(true);
       return;
     }
 
@@ -181,28 +170,27 @@ export default function DashboardPage() {
           name: formData.name.trim(),
           wallet: formData.walletAddress.trim(),
           link: formData.link.trim(),
-          email: user?.email || 'anonymous' // Include email for tracking
+          email: user.email
         });
 
         if (success) {
-          // Mark submission as completed in localStorage
+          // Save submission to localStorage for profile display
           if (user?.email) {
-            const submissionKey = `submission_${user.email}`;
-            const submissionDataKey = `submission_data_${user.email}`;
+            const submissionsKey = `submissions_${user.email}`;
+            const existingSubmissions = JSON.parse(localStorage.getItem(submissionsKey) || '[]');
             
-            // Save submission status
-            localStorage.setItem(submissionKey, 'true');
-            
-            // Save submission data for display in profile
-            const submissionData = {
+            const newSubmission = {
+              id: Date.now().toString(),
               name: formData.name.trim(),
               wallet: formData.walletAddress.trim(),
               link: formData.link.trim(),
-              email: user.email
+              email: user.email,
+              timestamp: new Date().toISOString(),
+              date: new Date().toLocaleDateString()
             };
-            localStorage.setItem(submissionDataKey, JSON.stringify(submissionData));
             
-            setHasSubmitted(true);
+            existingSubmissions.push(newSubmission);
+            localStorage.setItem(submissionsKey, JSON.stringify(existingSubmissions));
           }
           
           alert('Submission successful! Your entry has been recorded.');
@@ -294,7 +282,7 @@ export default function DashboardPage() {
       {/* Main Content Container - MODIFIED FOR STICKY SIDEBAR */}
       <div className="flex max-w-7xl mx-auto">
         {/* Left Sidebar - STICKY */}
-        <aside className="w-96 border-r border-gray-200 bg-white sticky top-0 self-start h-screen overflow-y-auto">
+        <aside className="w-80 border-r border-gray-200 bg-white sticky top-0 self-start h-screen overflow-y-auto">
           {/* Section Header */}
           <div className="border-b border-gray-200 p-6">
             <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
@@ -302,7 +290,7 @@ export default function DashboardPage() {
             </h2>
           </div>
           
-          <div className="p-6">
+          <div className="p-4">
             {/* Total Prizes */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#818BFF' }}>
@@ -331,23 +319,16 @@ export default function DashboardPage() {
             <div className="mb-8">
               <button
                 onClick={() => {
-                  if (hasSubmitted) {
-                    alert('You have already submitted your entry. Only one submission per email is allowed.');
-                  } else {
-                    setShowModal(true);
+                  if (!user) {
+                    setShowLoginModal(true);
+                    return;
                   }
+                  setShowModal(true);
                 }}
-                className={`w-full px-6 py-4 font-black rounded-xl transition-all duration-300 shadow-lg ${
-                  hasSubmitted 
-                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                    : 'transform hover:scale-105 text-white hover:opacity-90'
-                }`}
-                style={{ 
-                  backgroundColor: hasSubmitted ? '#9CA3AF' : '#1A0C6D' 
-                }}
-                disabled={hasSubmitted}
+                className="w-full px-6 py-4 font-black rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg text-white hover:opacity-90"
+                style={{ backgroundColor: '#1A0C6D' }}
               >
-                {hasSubmitted ? 'Already Submitted ✓' : 'Submit Your Post'}
+                Submit my Yap
               </button>
             </div>
 
@@ -382,7 +363,7 @@ export default function DashboardPage() {
             </h2>
           </div>
 
-          <div className="p-8">
+          <div className="p-6">
             {/* Campaign Info */}
             <div className="mb-10">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -688,6 +669,75 @@ export default function DashboardPage() {
             >
               Get Started
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Login Required Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div 
+                className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ backgroundColor: '#1A0C6D' }}
+              >
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-medium text-black mb-2">Login Required</h2>
+              <p className="text-gray-600 font-light">
+                You need to be logged in to submit your Yap entry.
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+                  <span className="text-white text-sm font-bold">1</span>
+                </div>
+                <p className="text-black font-light">Sign in with your Google account</p>
+              </div>
+              
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: '#C0C0DC' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+                  <span className="text-white text-sm font-bold">2</span>
+                </div>
+                <p className="text-black font-light">Fill out your submission details</p>
+              </div>
+              
+              <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+                  <span className="text-white text-sm font-bold">3</span>
+                </div>
+                <p className="text-black font-light">Submit your Yap and get rewarded!</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="flex-1 px-4 py-3 font-light rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowLoginModal(false);
+                  try {
+                    await signInWithGoogle();
+                  } catch (error) {
+                    console.error('Failed to sign in:', error);
+                  }
+                }}
+                className="flex-1 px-4 py-3 font-medium rounded-xl transition-all duration-300 text-white hover:opacity-90"
+                style={{ backgroundColor: '#1A0C6D' }}
+              >
+                Sign In with Google
+              </button>
+            </div>
           </div>
         </div>
       )}

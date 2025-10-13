@@ -15,40 +15,43 @@ export default function ProfilePage() {
     walletAddress: '',
   });
   const [error, setError] = useState<string | null>(null);
-  const [userSubmission, setUserSubmission] = useState<{
+  const [userSubmissions, setUserSubmissions] = useState<Array<{
+    id: string;
     name: string;
     wallet: string;
     link: string;
     email: string;
-  } | null>(null);
+    timestamp: string;
+    date: string;
+  }>>([]);
 
   // Debug logging
   console.log('ProfilePage - user:', user);
   console.log('ProfilePage - profile:', profile);
   console.log('ProfilePage - authLoading:', authLoading);
 
-  // Load user's submission data from localStorage
+  // Load user's submissions from localStorage
   useEffect(() => {
     if (user?.email) {
-      const submissionKey = `submission_${user.email}`;
-      const hasSubmitted = localStorage.getItem(submissionKey) === 'true';
+      const submissionsKey = `submissions_${user.email}`;
+      const savedSubmissions = localStorage.getItem(submissionsKey);
       
-      if (hasSubmitted) {
-        // Try to get submission data from localStorage
-        const submissionDataKey = `submission_data_${user.email}`;
-        const savedSubmissionData = localStorage.getItem(submissionDataKey);
-        
-        if (savedSubmissionData) {
-          try {
-            const parsedData = JSON.parse(savedSubmissionData);
-            setUserSubmission(parsedData);
-          } catch (error) {
-            console.error('Error parsing submission data:', error);
-          }
+      if (savedSubmissions) {
+        try {
+          const parsedSubmissions = JSON.parse(savedSubmissions);
+          setUserSubmissions(parsedSubmissions);
+        } catch (error) {
+          console.error('Error parsing submissions:', error);
+          setUserSubmissions([]);
         }
+      } else {
+        setUserSubmissions([]);
       }
+    } else {
+      setUserSubmissions([]);
     }
   }, [user]);
+
 
   const handleLogout = async () => {
     try {
@@ -316,88 +319,46 @@ export default function ProfilePage() {
       </div>
 
 
-      {userSubmission ? (
-        <div className="relative overflow-hidden rounded-2xl">
-          {/* Background with gradient */}
-          <div 
-            className="absolute inset-0 opacity-5"
-            style={{ 
-              background: 'linear-gradient(135deg, #1A0C6D 0%, #C0C0DC 50%, #C4DAFF 100%)' 
-            }}
-          ></div>
-          
-          {/* Main content */}
-          <div className="relative bg-white border-2 rounded-2xl p-6 shadow-lg" style={{ borderColor: '#C0C0DC' }}>
-            {/* Header with colored accent */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-3 h-8 rounded-full"
-                  style={{ backgroundColor: '#1A0C6D' }}
-                ></div>
-                <h4 className="text-xl font-medium text-black">Your Yap Submission</h4>
-              </div>
-              <span 
-                className="px-4 py-2 rounded-full text-xs font-medium text-white shadow-sm"
-                style={{ backgroundColor: '#1A0C6D' }}
+      {userSubmissions.length === 0 ? (
+        <div className="bg-white border-lavender rounded-2xl p-12 text-center">
+          <p className="text-gray-600 font-light">Your submissions will appear here after you submit them from the dashboard.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {userSubmissions.slice().reverse().map((submission, index) => {
+            const submissionNumber = userSubmissions.length - index;
+            return (
+              <div 
+                key={submission.id} 
+                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
               >
-                ✓ Submitted
-              </span>
-            </div>
-            
-            <div className="space-y-5">
-              {/* Name */}
-              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
-                <div className="flex-shrink-0">
-                  <User className="w-5 h-5 mt-0.5 text-black" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Name</p>
-                  <p className="text-black font-light">{userSubmission.name}</p>
-                </div>
-              </div>
-              
-              {/* Wallet Address */}
-              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF'}}>
-                <div className="flex-shrink-0">
-                  <Wallet className="w-5 h-5 mt-0.5 text-black" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Wallet Address</p>
-                  <p className="font-mono text-sm text-black break-all font-light">{userSubmission.wallet}</p>
-                </div>
-              </div>
-              
-              {/* Link */}
-              <div className="flex items-start gap-4 p-4 rounded-xl" style={{ backgroundColor: '#C4DAFF' }}>
-                <div className="flex-shrink-0">
-                  <ExternalLink className="w-5 h-5 mt-0.5 text-black" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1 text-black">Content Link</p>
+                <div className="flex items-center justify-between">
+                  {/* Left side - Submission info */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
+                      <span className="text-white text-sm font-bold">#{submissionNumber}</span>
+                    </div>
+                    <div>
+                      <p className="text-black font-medium">Submission #{submissionNumber}</p>
+                      <p className="text-gray-500 text-sm font-light">submitted this • {submission.date}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Right side - View button */}
                   <a 
-                    href={userSubmission.link} 
-                    target="_blank" 
+                    href={submission.link}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="underline break-all font-light hover:opacity-80 transition-opacity text-black"
+                    className="px-4 py-2 rounded-lg font-medium text-white hover:opacity-90 transition-all flex items-center gap-2"
+                    style={{ backgroundColor: '#1A0C6D' }}
                   >
-                    {userSubmission.link}
+                    <ExternalLink className="w-4 h-4" />
+                    View
                   </a>
                 </div>
               </div>
-            </div>
-            
-            {/* Footer */}
-            <div className="mt-6 pt-4 border-t-2" style={{ borderColor: '#C0C0DC' }}>
-              <p className="text-sm font-bold text-black">
-                Submitted on {new Date().toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border-lavender rounded-2xl p-12 text-center">
-          <p className="text-gray-600 font-light">No submissions yet. Create your first submission!</p>
+            );
+          })}
         </div>
       )}
 
