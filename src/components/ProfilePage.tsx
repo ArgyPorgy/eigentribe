@@ -177,8 +177,8 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8">
+      <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 px-4 lg:px-6 py-8 lg:py-12">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 lg:p-8">
           <div className="text-center py-12">
             <div className="text-red-600 text-lg font-medium mb-4">Configuration Error</div>
             <div className="text-gray-700 mb-6">{error}</div>
@@ -200,8 +200,8 @@ export default function ProfilePage() {
 
   if (authLoading || (!profile && user)) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
-        <div className="bg-white border-lavender rounded-2xl p-8">
+      <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 px-4 lg:px-6 py-8 lg:py-12">
+        <div className="bg-white border-lavender rounded-2xl p-4 lg:p-8">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             <span className="ml-3 text-gray-600">
@@ -215,8 +215,8 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
-        <div className="bg-white border-lavender rounded-2xl p-8">
+      <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 px-4 lg:px-6 py-8 lg:py-12">
+        <div className="bg-white border-lavender rounded-2xl p-4 lg:p-8">
           <div className="flex items-center justify-center py-12">
             <span className="text-gray-600">Please log in to view your profile.</span>
           </div>
@@ -229,24 +229,24 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 px-6 py-12">
-      <div className="bg-white border-lavender rounded-2xl p-8">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
-              <User className="w-10 h-10 text-white" />
+    <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 px-4 lg:px-6 py-8 lg:py-12">
+      <div className="bg-white border-lavender rounded-2xl p-4 lg:p-8">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3 lg:gap-4">
+            <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#1A0C6D' }}>
+              <User className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-medium text-black">{profile.name || profile.email.split('@')[0]}</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl lg:text-2xl font-medium text-black truncate">{profile.name || profile.email.split('@')[0]}</h2>
               <div className="flex items-center gap-2 text-gray-600 mt-1">
-                <Mail className="w-4 h-4" />
-                <p className="text-sm font-light">{profile.email}</p>
+                <Mail className="w-3 h-3 lg:w-4 lg:h-4 flex-shrink-0" />
+                <p className="text-xs lg:text-sm font-light truncate">{profile.email}</p>
               </div>
             </div>
           </div>
           <button
             onClick={() => setEditingProfile(!editingProfile)}
-            className="px-4 py-2 font-black text-white rounded-lg transition-all"
+            className="px-4 py-2 text-sm lg:text-base font-black text-white rounded-lg transition-all flex-shrink-0"
             style={{ backgroundColor: '#1A0C6D' }}
           >
             {editingProfile ? 'Cancel' : 'Edit Profile'}
@@ -316,33 +316,33 @@ export default function ProfilePage() {
       </div>
 
       <div>
-        <h3 className="text-2xl font-medium text-black mb-6">Your Submissions</h3>
+        <h3 className="text-xl lg:text-2xl font-medium text-black mb-4 lg:mb-6">Your Submissions</h3>
       </div>
 
 
       {userSubmissions.length === 0 ? (
-        <div className="bg-white border-lavender rounded-2xl p-12 text-center">
-          <p className="text-gray-600 font-light">Your submissions will appear here after you submit them from the dashboard.</p>
+        <div className="bg-white border-lavender rounded-2xl p-8 lg:p-12 text-center">
+          <p className="text-sm lg:text-base text-gray-600 font-light">Your submissions will appear here after you submit them from the dashboard.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 lg:space-y-4">
           {userSubmissions.slice().reverse().map((submission, index) => {
             const submissionNumber = userSubmissions.length - index;
             return (
               <div 
                 key={submission.id} 
-                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className="bg-white rounded-xl border border-gray-200 p-3 lg:p-4 hover:shadow-md transition-shadow"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     {/* Left side - Submission info */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#1A0C6D' }}>
-                        <span className="text-white text-sm font-bold">#{submissionNumber}</span>
+                    <div className="flex items-center gap-2 lg:gap-3 min-w-0">
+                      <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#1A0C6D' }}>
+                        <span className="text-white text-xs lg:text-sm font-bold">#{submissionNumber}</span>
                       </div>
-                      <div>
-                        <p className="text-black font-medium">Submission #{submissionNumber}</p>
-                        <p className="text-gray-500 text-sm font-light">submitted this • {submission.date}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm lg:text-base text-black font-medium truncate">Submission #{submissionNumber}</p>
+                        <p className="text-gray-500 text-xs lg:text-sm font-light truncate">submitted this • {submission.date}</p>
                       </div>
                     </div>
                     
@@ -351,17 +351,17 @@ export default function ProfilePage() {
                       href={submission.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 rounded-lg font-medium text-white hover:opacity-90 transition-all flex items-center gap-2"
+                      className="px-3 py-2 lg:px-4 lg:py-2 rounded-lg text-sm lg:text-base font-medium text-white hover:opacity-90 transition-all flex items-center justify-center gap-2 flex-shrink-0"
                       style={{ backgroundColor: '#1A0C6D' }}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="w-3 h-3 lg:w-4 lg:h-4" />
                       View
                     </a>
                   </div>
                   
                   {/* Content Tags */}
                   {submission.contentTags && submission.contentTags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 ml-13">
+                    <div className="flex flex-wrap gap-2 ml-0 sm:ml-10 lg:ml-13">
                       {submission.contentTags.map((tag: string, tagIndex: number) => (
                         <span 
                           key={tagIndex}
@@ -381,12 +381,12 @@ export default function ProfilePage() {
       )}
 
       {/* Logout Button */}
-      <div className="mt-12 pt-8 border-t border-gray-200">
+      <div className="mt-8 lg:mt-12 pt-6 lg:pt-8 border-t border-gray-200">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90 bg-red-600 hover:bg-red-700"
+          className="flex items-center justify-center gap-2 px-4 lg:px-6 py-2.5 lg:py-3 rounded-lg text-sm lg:text-base font-medium text-white transition-all hover:opacity-90 bg-red-600 hover:bg-red-700 w-full sm:w-auto"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
           Logout
         </button>
       </div>

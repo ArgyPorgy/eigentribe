@@ -205,15 +205,17 @@ export default function DashboardPage() {
       return;
     }
 
-    // Check if Turnstile is verified
-    if (!turnstileToken) {
+    setIsSubmitting(true);
+
+    // Check if Turnstile is verified (only if site key is configured)
+    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    if (turnstileSiteKey && !turnstileToken) {
       console.log('Turnstile not verified');
       setErrorMessage('Please complete the verification challenge.');
       setShowErrorModal(true);
+      setIsSubmitting(false);
       return;
     }
-
-    setIsSubmitting(true);
 
     // Validate name (text only, no numbers)
     const nameRegex = /^[a-zA-Z\s]+$/;
@@ -360,6 +362,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!showModal) return;
 
+    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    
+    // Skip Turnstile if no site key is configured
+    if (!turnstileSiteKey) {
+      console.log('Turnstile site key not configured, skipping verification');
+      setTurnstileToken('skipped'); // Allow form submission
+      return;
+    }
+
     const renderTurnstile = () => {
       const container = document.getElementById('turnstile-container');
       
@@ -386,9 +397,9 @@ export default function DashboardPage() {
       }
 
       try {
-        console.log('Rendering Turnstile with site key:', import.meta.env.VITE_TURNSTILE_SITE_KEY);
+        console.log('Rendering Turnstile with site key:', turnstileSiteKey);
         const widgetId = window.turnstile.render('#turnstile-container', {
-          sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+          sitekey: turnstileSiteKey,
           callback: (token: string) => {
             console.log('Turnstile verification successful, token received');
             setTurnstileToken(token);
@@ -435,33 +446,33 @@ export default function DashboardPage() {
           }}
         ></div>
         
-        <div className="relative max-w-7xl mx-auto px-6 py-12" style={{ zIndex: 10 }}>
-          <div className="flex items-center justify-center gap-8">
-            <div className="w-20 h-20 flex items-center justify-center">
+        <div className="relative max-w-7xl mx-auto px-4 lg:px-6 py-8 lg:py-12" style={{ zIndex: 10 }}>
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-8">
+            <div className="w-16 h-16 lg:w-20 lg:h-20 flex items-center justify-center">
               <img 
                 src="https://pbs.twimg.com/profile_images/1967450224168943616/Za_8hiTn_400x400.jpg" 
                 alt="Logo" 
-                className="w-16 h-16 rounded-lg"
+                className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg"
                 style={{ border: '1px solid #C0C0DC' }}
               />
             </div>
             
             <div className="text-center">
-              <h1 className="text-4xl font-medium mb-3 text-white drop-shadow-lg">{eventData.title}</h1>
-              <div className="flex items-center justify-center gap-6 text-sm font-light mb-2">
+              <h1 className="text-2xl lg:text-4xl font-medium mb-2 lg:mb-3 text-white drop-shadow-lg">{eventData.title}</h1>
+              <div className="flex flex-wrap items-center justify-center gap-2 lg:gap-6 text-xs lg:text-sm font-light mb-2">
                 <span className="text-gray-200 drop-shadow-md">by {eventData.organization}</span>
-                <span className="text-gray-300">•</span>
+                <span className="hidden lg:inline text-gray-300">•</span>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full animate-pulse bg-green-400"></div>
                   <span className="text-green-300 drop-shadow-md">{eventData.status}</span>
                 </div>
-                <span className="text-gray-300">•</span>
+                <span className="hidden lg:inline text-gray-300">•</span>
                 <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-gray-200" />
+                  <Globe className="w-3 h-3 lg:w-4 lg:h-4 text-gray-200" />
                   <span className="text-gray-200 drop-shadow-md">{eventData.region}</span>
                 </div>
               </div>
-              <div className="text-sm font-light text-gray-200 drop-shadow-md">
+              <div className="text-xs lg:text-sm font-light text-gray-200 drop-shadow-md">
                 {eventData.campaignDuration}
               </div>
             </div>
@@ -469,18 +480,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Content Container - MODIFIED FOR STICKY SIDEBAR */}
-      <div className="flex max-w-7xl mx-auto">
-        {/* Left Sidebar - STICKY */}
-        <aside className="w-80 border-r border-gray-200 bg-white sticky top-0 self-start h-screen overflow-y-auto">
+      {/* Main Content Container - RESPONSIVE LAYOUT */}
+      <div className="flex flex-col lg:flex-row max-w-7xl mx-auto">
+        {/* Left Sidebar - STICKY ON DESKTOP, STACKED ON MOBILE */}
+        <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white lg:sticky lg:top-0 lg:self-start lg:h-screen lg:overflow-y-auto">
           {/* Section Header */}
-          <div className="border-b border-gray-200 py-6 pl-4 pr-6">
-            <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
+          <div className="border-b border-gray-200 py-4 lg:py-6 px-4 lg:pl-4 lg:pr-6">
+            <h2 className="text-lg lg:text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
               Prizes & Submission
             </h2>
           </div>
           
-          <div className="py-4 pl-4 pr-4">
+          <div className="py-4 px-4 lg:pl-4 lg:pr-4">
             {/* Total Prizes */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#818BFF' }}>
@@ -555,13 +566,13 @@ export default function DashboardPage() {
         {/* Main Content Area - SCROLLABLE */}
         <main className="flex-1 bg-white">
           {/* Section Header */}
-          <div className="border-b border-gray-200 p-6">
-            <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
+          <div className="border-b border-gray-200 p-4 lg:p-6">
+            <h2 className="text-lg lg:text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
               Details
             </h2>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 lg:p-6">
             {/* Campaign Info */}
             <div className="mb-10">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -862,9 +873,11 @@ export default function DashboardPage() {
               </div>
 
               {/* Cloudflare Turnstile */}
-              <div className="flex justify-center">
-                <div id="turnstile-container"></div>
-              </div>
+              {import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+                <div className="flex justify-center">
+                  <div id="turnstile-container"></div>
+                </div>
+              )}
             </div>
             
             <div className="flex gap-3">

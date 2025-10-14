@@ -35,13 +35,13 @@ export default function Navigation({ currentPage }: NavigationProps) {
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2 text-black">
+            <Link to="/dashboard" className="flex items-center gap-2 text-black cursor-pointer hover:opacity-80 transition-opacity">
               <img 
                 src="https://pbs.twimg.com/profile_images/1967450224168943616/Za_8hiTn_400x400.jpg" 
                 alt="EigenTribe" 
                 className="w-12 h-12 rounded-lg border border-gray-300"
               />
-            </div>
+            </Link>
 
             <div className="hidden md:flex items-center gap-2">
               <Link
