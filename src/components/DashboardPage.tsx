@@ -3,11 +3,11 @@ import { Clock, Globe, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { addSubmissionToSheet } from '../lib/googleSheets';
 
-// Declare grecaptcha on window
+// Declare Turnstile on window
 declare global {
   interface Window {
-    grecaptcha?: any;
-    onCaptchaSuccess?: (token: string) => void;
+    turnstile?: any;
+    onTurnstileSuccess?: (token: string) => void;
   }
 }
 
@@ -130,8 +130,9 @@ export default function DashboardPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaWidgetId, setCaptchaWidgetId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileWidgetId, setTurnstileWidgetId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{
     name?: string;
     link?: string;
@@ -204,13 +205,15 @@ export default function DashboardPage() {
       return;
     }
 
-    // Check if captcha is verified
-    if (!captchaToken) {
-      console.log('Captcha not verified');
-      setErrorMessage('Please complete the reCAPTCHA verification.');
+    // Check if Turnstile is verified
+    if (!turnstileToken) {
+      console.log('Turnstile not verified');
+      setErrorMessage('Please complete the verification challenge.');
       setShowErrorModal(true);
       return;
     }
+
+    setIsSubmitting(true);
 
     // Validate name (text only, no numbers)
     const nameRegex = /^[a-zA-Z\s]+$/;
@@ -219,6 +222,7 @@ export default function DashboardPage() {
       setValidationErrors({ name: 'Name must contain only letters and spaces.' });
       setErrorMessage('Name must contain only letters and spaces.');
       setShowErrorModal(true);
+      setIsSubmitting(false);
       return;
     }
 
@@ -229,6 +233,7 @@ export default function DashboardPage() {
       setValidationErrors({ link: 'Please enter a valid URL for the link.' });
       setErrorMessage('Please enter a valid URL for the link.');
       setShowErrorModal(true);
+      setIsSubmitting(false);
       return;
     }
 
@@ -239,6 +244,7 @@ export default function DashboardPage() {
       setValidationErrors({ contentTags: 'Please select at least one content tag.' });
       setErrorMessage('Please select at least one content tag.');
       setShowErrorModal(true);
+      setIsSubmitting(false);
       return;
     }
 
@@ -250,7 +256,7 @@ export default function DashboardPage() {
       console.log('Submitting:', formData);
       
       try {
-        const success = await addSubmissionToSheet({
+        const result = await addSubmissionToSheet({
           name: formData.name.trim(),
           wallet: formData.walletAddress.trim(),
           link: formData.link.trim(),
@@ -258,7 +264,7 @@ export default function DashboardPage() {
           contentTags: formData.contentTags
         });
 
-        if (success) {
+        if (result.success) {
           // Save submission to localStorage for profile display
           if (user?.email) {
             const submissionsKey = `submissions_${user.email}`;
@@ -289,25 +295,30 @@ export default function DashboardPage() {
           setErrorMessage('Submission successful! Your entry has been recorded.');
           setShowErrorModal(true);
           setShowModal(false);
+          setIsSubmitting(false);
           // Only clear the link and tags, keep name and wallet address
           setFormData(prev => ({ ...prev, link: '', contentTags: [] }));
-          // Reset captcha
-          setCaptchaToken(null);
-          if (window.grecaptcha && captchaWidgetId !== null) {
-            window.grecaptcha.reset(captchaWidgetId);
+          // Reset Turnstile
+          setTurnstileToken(null);
+          if (window.turnstile && turnstileWidgetId) {
+            window.turnstile.reset(turnstileWidgetId);
           }
         } else {
-          setErrorMessage('Submission failed. Please try again or contact support.');
+          // Show the error message from the API (including rate limit messages)
+          setErrorMessage(result.error || 'Submission failed. Please try again or contact support.');
           setShowErrorModal(true);
+          setIsSubmitting(false);
         }
       } catch (error) {
         console.error('Submission error:', error);
         setErrorMessage('An error occurred during submission. Please try again.');
         setShowErrorModal(true);
+        setIsSubmitting(false);
       }
     } else {
       setErrorMessage('Please fill in all required fields and select at least one content tag.');
       setShowErrorModal(true);
+      setIsSubmitting(false);
     }
   };
 
@@ -344,63 +355,55 @@ export default function DashboardPage() {
     }
   };
 
-  // Set up reCAPTCHA callback
-  useEffect(() => {
-    window.onCaptchaSuccess = (token: string) => {
-      setCaptchaToken(token);
-    };
-    
-    return () => {
-      window.onCaptchaSuccess = () => {};
-    };
-  }, []);
 
-  // Render reCAPTCHA when modal opens
+  // Render Turnstile when modal opens
   useEffect(() => {
     if (!showModal) return;
 
-    const renderCaptcha = () => {
-      const container = document.getElementById('recaptcha-container');
+    const renderTurnstile = () => {
+      const container = document.getElementById('turnstile-container');
       
       if (!container) {
-        console.log('reCAPTCHA container not found');
+        console.log('Turnstile container not found');
         return;
       }
 
       if (container.hasChildNodes()) {
-        console.log('reCAPTCHA already rendered');
+        console.log('Turnstile already rendered');
         return;
       }
 
-      if (!window.grecaptcha) {
-        console.log('grecaptcha not loaded yet, retrying...');
-        setTimeout(renderCaptcha, 200);
+      if (!window.turnstile) {
+        console.log('Turnstile not loaded yet, retrying...');
+        setTimeout(renderTurnstile, 200);
         return;
       }
 
-      if (!window.grecaptcha.render) {
-        console.log('grecaptcha.render not available, waiting for ready...');
-        window.grecaptcha.ready(() => {
-          renderCaptcha();
-        });
+      if (!window.turnstile.render) {
+        console.log('Turnstile.render not available, retrying...');
+        setTimeout(renderTurnstile, 200);
         return;
       }
 
       try {
-        console.log('Rendering reCAPTCHA with site key:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
-        const widgetId = window.grecaptcha.render('recaptcha-container', {
-          sitekey: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
-          callback: 'onCaptchaSuccess'
+        console.log('Rendering Turnstile with site key:', import.meta.env.VITE_TURNSTILE_SITE_KEY);
+        const widgetId = window.turnstile.render('#turnstile-container', {
+          sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+          callback: (token: string) => {
+            console.log('Turnstile verification successful, token received');
+            setTurnstileToken(token);
+          },
+          theme: 'light'
         });
-        setCaptchaWidgetId(widgetId);
-        console.log('reCAPTCHA rendered successfully, widget ID:', widgetId);
+        setTurnstileWidgetId(widgetId);
+        console.log('Turnstile rendered successfully, widget ID:', widgetId);
       } catch (error) {
-        console.error('reCAPTCHA render error:', error);
+        console.error('Turnstile render error:', error);
       }
     };
 
     // Start rendering after a short delay to ensure DOM is ready
-    setTimeout(renderCaptcha, 200);
+    setTimeout(renderTurnstile, 200);
   }, [showModal]);
 
   const handleGetStarted = async () => {
@@ -471,13 +474,13 @@ export default function DashboardPage() {
         {/* Left Sidebar - STICKY */}
         <aside className="w-80 border-r border-gray-200 bg-white sticky top-0 self-start h-screen overflow-y-auto">
           {/* Section Header */}
-          <div className="border-b border-gray-200 p-6">
+          <div className="border-b border-gray-200 py-6 pl-4 pr-6">
             <h2 className="text-xl font-medium border-b-2 pb-2 inline-block text-black" style={{ borderColor: '#1A0C6D' }}>
               Prizes & Submission
             </h2>
           </div>
           
-          <div className="p-4">
+          <div className="py-4 pl-4 pr-4">
             {/* Total Prizes */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#818BFF' }}>
@@ -858,9 +861,9 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* reCAPTCHA */}
+              {/* Cloudflare Turnstile */}
               <div className="flex justify-center">
-                <div id="recaptcha-container"></div>
+                <div id="turnstile-container"></div>
               </div>
             </div>
             
@@ -868,10 +871,10 @@ export default function DashboardPage() {
               <button
                 onClick={() => {
                   setShowModal(false);
-                  setCaptchaToken(null);
+                  setTurnstileToken(null);
                   setValidationErrors({});
-                  if (window.grecaptcha && captchaWidgetId !== null) {
-                    window.grecaptcha.reset(captchaWidgetId);
+                  if (window.turnstile && turnstileWidgetId) {
+                    window.turnstile.reset(turnstileWidgetId);
                   }
                 }}
                 className="flex-1 px-4 py-3 font-light rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all duration-300"
@@ -880,10 +883,21 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex-1 px-4 py-3 font-black rounded-xl transition-all duration-300 text-white hover:opacity-90"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 font-black rounded-xl transition-all duration-300 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ backgroundColor: '#1A0C6D' }}
               >
-                Submit
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit'
+                )}
               </button>
             </div>
           </div>

@@ -9,7 +9,7 @@ interface SubmissionData {
   contentTags?: string[];
 }
 
-export const addSubmissionToSheet = async (data: SubmissionData): Promise<boolean> => {
+export const addSubmissionToSheet = async (data: SubmissionData): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('Getting session...');
     
@@ -18,8 +18,7 @@ export const addSubmissionToSheet = async (data: SubmissionData): Promise<boolea
     
     if (sessionError || !session) {
       console.error('No session:', sessionError);
-      alert('Please log in to submit');
-      return false;
+      return { success: false, error: 'Please log in to submit' };
     }
 
     console.log('Session found, calling Netlify function...');
@@ -35,7 +34,8 @@ export const addSubmissionToSheet = async (data: SubmissionData): Promise<boolea
       body: JSON.stringify({
         name: data.name,
         wallet: data.wallet,
-        link: data.link
+        link: data.link,
+        contentTags: data.contentTags || []
       })
     });
 
@@ -52,18 +52,16 @@ export const addSubmissionToSheet = async (data: SubmissionData): Promise<boolea
         errorData = { error: errorText };
       }
       
-      alert(errorData.error || 'Submission failed');
-      return false;
+      return { success: false, error: errorData.error || 'Submission failed' };
     }
 
     const result = await response.json();
     console.log('✅ Success:', result);
     
-    return true;
+    return { success: true };
 
   } catch (error) {
     console.error('Submission error:', error);
-    alert('Submission failed. Please try again.');
-    return false;
+    return { success: false, error: 'Submission failed. Please try again.' };
   }
 };

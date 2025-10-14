@@ -22,6 +22,7 @@ dist-ssr
 *.sw?
 .env
 .env.local
+.env.bak
 
 # Local Netlify folder
 .netlify
