@@ -518,7 +518,7 @@ export default function DashboardPage() {
                 className="w-full px-6 py-4 font-black rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg text-white hover:opacity-90"
                 style={{ backgroundColor: '#1A0C6D' }}
               >
-                Submit my Yap
+                Submit my Post
               </button>
             </div>
 
