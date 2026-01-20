@@ -429,19 +429,18 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header Section */}
-      <div className="relative border-b border-gray-200">
+      <div className="relative border-b border-gray-200" style={{ backgroundColor: '#1A0C6D' }}>
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
-            backgroundImage: 'url(/Egbg.png)',
+            backgroundImage: `url(${window.location.origin}/Egbg.png)`,
             zIndex: 1
           }}
         ></div>
         
         <div 
-          className="absolute inset-0 bg-black"
+          className="absolute inset-0 bg-black/40"
           style={{ 
-            opacity: 0.4,
             zIndex: 2
           }}
         ></div>
